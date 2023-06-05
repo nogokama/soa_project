@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"soa_project/pkg/proto/mafia"
-	"soa_project/server/utils/slices"
+	"soa_project/utils/slices"
 	"sort"
 	"sync"
 	"time"
@@ -331,6 +331,9 @@ func (s *server) startNewGame(n []string) {
 		s.streams[name] <- &mafia.Event{Data: &mafia.Event_GameStarted{GameStarted: &mafia.GameStarted{
 			Players: names,
 			Role:    session.players[name],
+		}}}
+		s.streams[name] <- &mafia.Event{Data: &mafia.Event_NightStarted{NightStarted: &mafia.NightStarted{
+			NightNum: int32(session.dayCounter),
 		}}}
 
 		switch session.players[name] {

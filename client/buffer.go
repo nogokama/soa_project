@@ -1,5 +1,7 @@
 package main
 
+import "soa_project/utils/slices"
+
 type CircularBuffer struct {
 	buffer []string
 	size   int
@@ -43,4 +45,8 @@ func (cb *CircularBuffer) Get() []string {
 		copy(commands[cb.size-cb.tail:], cb.buffer[:cb.head])
 	}
 	return commands
+}
+
+func (cb *CircularBuffer) GetReversed() []string {
+	return slices.Reverse(cb.Get())
 }

@@ -1,5 +1,7 @@
 package game
 
+import "soa_project/pkg/proto/mafia"
+
 type GameState = int
 
 const (
@@ -27,5 +29,17 @@ func GetTimeName(time TimeType) string {
 	case TimeNight:
 		return "NIGHT"
 	}
+
+	return "ERROR??"
+}
+
+func GetAliveStateName(state mafia.MafiaState) string {
+	switch state {
+	case mafia.MafiaState_ALIVE:
+		return "ALIVE"
+	case mafia.MafiaState_DEAD:
+		return "DEAD"
+	}
+
 	return "ERROR??"
 }

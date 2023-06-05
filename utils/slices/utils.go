@@ -20,3 +20,11 @@ func Contains[T comparable](a []T, val T) bool {
 
 	return false
 }
+
+func Reverse[T any](a []T) []T {
+	for i := 0; i < len(a)-i-1; i++ {
+		a[i], a[len(a)-i-1] = a[len(a)-i-1], a[i]
+	}
+
+	return a
+}

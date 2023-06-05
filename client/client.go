@@ -8,7 +8,7 @@ import (
 	"os"
 	"soa_project/client/game"
 	"soa_project/pkg/proto/mafia"
-	"soa_project/server/utils/algo"
+	"soa_project/utils/algo"
 	"sort"
 	"strconv"
 	"strings"
@@ -85,6 +85,7 @@ func NewClient(screen tcell.Screen, cli mafia.MafiaClient) *Client {
 			players:           make(map[string]mafia.MafiaRole),
 			states:            make(map[string]mafia.MafiaState),
 			availableCommands: mapset.NewSet(game.ExitCommand, game.AutoCommand),
+			dayNum:            1,
 		},
 		screen:               screen,
 		connectionFailedChan: make(chan int),
@@ -162,6 +163,9 @@ func (c *Client) handleGameEvent(ev *mafia.Event) {
 		c.onAskVote()
 	case *mafia.Event_DayStarted:
 		c.onDayStarted(event.DayStarted)
+	case *mafia.Event_NightStarted:
+		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: NIGHT %d started", event.NightStarted.GetNightNum()))
+		c.state.dayNum = int(event.NightStarted.GetNightNum())
 	default:
 		log.Fatalln("unexpected")
 	}
@@ -251,6 +255,9 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 			c.state.inputError = ""
 		}
 
+		c.state.input = strings.TrimSpace(c.state.input)
+		c.state.commandsBuffer.Add(c.getFullInput())
+
 		switch c.state.gameState {
 		case game.StateRegister:
 			c.onNameEntered()
@@ -262,7 +269,6 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 			c.onVoteEntered()
 		}
 
-		c.state.commandsBuffer.Add(c.getFullInput())
 		c.state.input = ""
 
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
@@ -379,7 +385,6 @@ func (c *Client) onNameEntered() {
 		return
 	}
 	name := c.state.input
-	c.state.input = ""
 	c.state.myName = name
 
 	request := &mafia.RegisterRequest{
@@ -406,7 +411,7 @@ func (c *Client) leaveGame() {
 }
 
 func (c *Client) reRenderScreen() {
-	screen := c.screen // TODO fix
+	screen := c.screen
 
 	screen.Clear()
 
@@ -440,6 +445,8 @@ func (c *Client) reRenderScreen() {
 }
 
 func (c *Client) reRenderLeftScreen(x, y, width, height int) {
+	bottomLimit := y + height
+
 	switch c.state.gameState {
 	case game.StateRegister:
 		c.state.inputPrefix = enterNamePrefix
@@ -462,7 +469,14 @@ func (c *Client) reRenderLeftScreen(x, y, width, height int) {
 		y++
 	}
 
-	c.emitStr(x, y, width, b.String())
+	cmds := c.state.commandsBuffer.GetReversed()
+	limit := algo.Min(len(cmds), bottomLimit-y-1)
+
+	for i := 0; i < limit; i++ {
+		c.emitStr(x, y+limit-i-1, width, cmds[i])
+	}
+
+	c.emitStr(x, y+limit, width, b.String())
 }
 
 func (c *Client) getFullInput() string {
@@ -479,6 +493,7 @@ func (c *Client) reRenderRightScreen(x, y, width, height int) {
 		y = c.renderGameRoom(x, y, width, height)
 	}
 
+	// TODO calculate limit
 	commands := c.state.updatesBuffer.Get()
 
 	for i, command := range commands {
@@ -489,7 +504,7 @@ func (c *Client) reRenderRightScreen(x, y, width, height int) {
 func (c *Client) renderGameRoom(x, y, width, height int) int {
 	c.emitStr(x, y, width, strings.Repeat("-", width))
 	y++
-	c.emitInTheMiddle(x, y, width, "GAME ROOM:")
+	c.emitInTheMiddle(x, y, width, fmt.Sprintf("[%s - %d] GAME ROOM:", game.GetTimeName(c.state.gameTime), c.state.dayNum))
 	y++
 
 	show := map[string]string{}
@@ -500,7 +515,8 @@ func (c *Client) renderGameRoom(x, y, width, height int) int {
 		if name == c.state.myName {
 			b.WriteString("YOU, ")
 		}
-		b.WriteString(game.GetRoleName(role))
+
+		b.WriteString(fmt.Sprintf("%s, %s", game.GetRoleName(role), game.GetAliveStateName(c.state.states[name])))
 		show[name] = b.String()
 
 		longest = algo.Max(longest, len(b.String()))
