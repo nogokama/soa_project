@@ -19,10 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Mafia_Register_FullMethodName = "/reverse.Mafia/Register"
-	Mafia_Vote_FullMethodName     = "/reverse.Mafia/Vote"
-	Mafia_Kill_FullMethodName     = "/reverse.Mafia/Kill"
-	Mafia_Search_FullMethodName   = "/reverse.Mafia/Search"
+	Mafia_Register_FullMethodName       = "/reverse.Mafia/Register"
+	Mafia_GetWaitingRoom_FullMethodName = "/reverse.Mafia/GetWaitingRoom"
+	Mafia_Vote_FullMethodName           = "/reverse.Mafia/Vote"
+	Mafia_Kill_FullMethodName           = "/reverse.Mafia/Kill"
+	Mafia_Search_FullMethodName         = "/reverse.Mafia/Search"
+	Mafia_FinishDay_FullMethodName      = "/reverse.Mafia/FinishDay"
 )
 
 // MafiaClient is the client API for Mafia service.
@@ -30,9 +32,11 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MafiaClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (Mafia_RegisterClient, error)
+	GetWaitingRoom(ctx context.Context, in *GetWaitingRequest, opts ...grpc.CallOption) (*GetWaitingResponse, error)
 	Vote(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
 	Kill(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
 	Search(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
+	FinishDay(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
 }
 
 type mafiaClient struct {
@@ -75,6 +79,15 @@ func (x *mafiaRegisterClient) Recv() (*Event, error) {
 	return m, nil
 }
 
+func (c *mafiaClient) GetWaitingRoom(ctx context.Context, in *GetWaitingRequest, opts ...grpc.CallOption) (*GetWaitingResponse, error) {
+	out := new(GetWaitingResponse)
+	err := c.cc.Invoke(ctx, Mafia_GetWaitingRoom_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *mafiaClient) Vote(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error) {
 	out := new(GameResponse)
 	err := c.cc.Invoke(ctx, Mafia_Vote_FullMethodName, in, out, opts...)
@@ -102,14 +115,25 @@ func (c *mafiaClient) Search(ctx context.Context, in *GameRequest, opts ...grpc.
 	return out, nil
 }
 
+func (c *mafiaClient) FinishDay(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error) {
+	out := new(GameResponse)
+	err := c.cc.Invoke(ctx, Mafia_FinishDay_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MafiaServer is the server API for Mafia service.
 // All implementations must embed UnimplementedMafiaServer
 // for forward compatibility
 type MafiaServer interface {
 	Register(*RegisterRequest, Mafia_RegisterServer) error
+	GetWaitingRoom(context.Context, *GetWaitingRequest) (*GetWaitingResponse, error)
 	Vote(context.Context, *GameRequest) (*GameResponse, error)
 	Kill(context.Context, *GameRequest) (*GameResponse, error)
 	Search(context.Context, *GameRequest) (*GameResponse, error)
+	FinishDay(context.Context, *GameRequest) (*GameResponse, error)
 	mustEmbedUnimplementedMafiaServer()
 }
 
@@ -120,6 +144,9 @@ type UnimplementedMafiaServer struct {
 func (UnimplementedMafiaServer) Register(*RegisterRequest, Mafia_RegisterServer) error {
 	return status.Errorf(codes.Unimplemented, "method Register not implemented")
 }
+func (UnimplementedMafiaServer) GetWaitingRoom(context.Context, *GetWaitingRequest) (*GetWaitingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWaitingRoom not implemented")
+}
 func (UnimplementedMafiaServer) Vote(context.Context, *GameRequest) (*GameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Vote not implemented")
 }
@@ -128,6 +155,9 @@ func (UnimplementedMafiaServer) Kill(context.Context, *GameRequest) (*GameRespon
 }
 func (UnimplementedMafiaServer) Search(context.Context, *GameRequest) (*GameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Search not implemented")
+}
+func (UnimplementedMafiaServer) FinishDay(context.Context, *GameRequest) (*GameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinishDay not implemented")
 }
 func (UnimplementedMafiaServer) mustEmbedUnimplementedMafiaServer() {}
 
@@ -161,6 +191,24 @@ type mafiaRegisterServer struct {
 
 func (x *mafiaRegisterServer) Send(m *Event) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _Mafia_GetWaitingRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWaitingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MafiaServer).GetWaitingRoom(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Mafia_GetWaitingRoom_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MafiaServer).GetWaitingRoom(ctx, req.(*GetWaitingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Mafia_Vote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -217,6 +265,24 @@ func _Mafia_Search_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Mafia_FinishDay_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MafiaServer).FinishDay(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Mafia_FinishDay_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MafiaServer).FinishDay(ctx, req.(*GameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Mafia_ServiceDesc is the grpc.ServiceDesc for Mafia service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -224,6 +290,10 @@ var Mafia_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "reverse.Mafia",
 	HandlerType: (*MafiaServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetWaitingRoom",
+			Handler:    _Mafia_GetWaitingRoom_Handler,
+		},
 		{
 			MethodName: "Vote",
 			Handler:    _Mafia_Vote_Handler,
@@ -235,6 +305,10 @@ var Mafia_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Search",
 			Handler:    _Mafia_Search_Handler,
+		},
+		{
+			MethodName: "FinishDay",
+			Handler:    _Mafia_FinishDay_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -1,25 +1,44 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"soa_project/pkg/proto/mafia"
 	"soa_project/server/utils/slices"
+	"sort"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 const (
 	startGameThreshold = 4
 )
 
+var (
+	requestError = errors.New("request error")
+)
+
 type gameSession struct {
 	players map[string]mafia.MafiaRole
+	states  map[string]mafia.MafiaState
 
-	mu sync.Mutex
+	expectKillFrom   mapset.Set[string]
+	expectSearch     bool
+	expectVoteFrom   mapset.Set[string]
+	expectFinishFrom mapset.Set[string]
+
+	dayCounter int
+	lastKilled string
 }
 
 func NewGameSession(names []string) *gameSession {
@@ -28,19 +47,33 @@ func NewGameSession(names []string) *gameSession {
 	roles = slices.Shuffle(roles)
 
 	players := make(map[string]mafia.MafiaRole)
+	states := make(map[string]mafia.MafiaState)
 
 	if len(names) != startGameThreshold {
 		log.Fatalln("wrong number of players")
 	}
 
+	mafias := mapset.NewSet[string]()
+
 	for i := 0; i < len(roles); i++ {
 		players[names[i]] = roles[i]
+		if roles[i] == mafia.MafiaRole_MAFIA {
+			mafias.Add(names[i])
+		}
+		states[names[i]] = mafia.MafiaState_ALIVE
 	}
 
 	return &gameSession{
 		players: players,
+		states:  states,
 
-		mu: sync.Mutex{},
+		expectKillFrom: mafias,
+		expectSearch:   true,
+
+		expectVoteFrom:   mapset.NewSet[string](),
+		expectFinishFrom: mapset.NewSet[string](),
+
+		dayCounter: 1,
 	}
 }
 
@@ -135,6 +168,139 @@ func (s *server) Register(request *mafia.RegisterRequest, newStream mafia.Mafia_
 	}
 }
 
+func (s *server) Vote(ctx context.Context, req *mafia.GameRequest) (*mafia.GameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return nil, status.Errorf(codes.Unimplemented, "method Vote not implemented")
+}
+
+func (s *server) Kill(ctx context.Context, req *mafia.GameRequest) (*mafia.GameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, resp, err := s.actionPrepare(req)
+	if err != nil {
+		return resp, nil
+	}
+
+	session.expectKillFrom.Remove(req.GetName())
+	session.lastKilled = req.GetVictim()
+	session.states[req.GetVictim()] = mafia.MafiaState_DEAD
+
+	s.mayBeNextDay(session)
+
+	return &mafia.GameResponse{Success: true}, nil
+}
+
+func (s *server) Search(ctx context.Context, req *mafia.GameRequest) (*mafia.GameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, resp, err := s.actionPrepare(req)
+	if err != nil {
+		return resp, nil
+	}
+
+	role := session.players[req.GetVictim()]
+
+	session.expectSearch = false
+
+	s.mayBeNextDay(session)
+
+	return &mafia.GameResponse{Success: true, Role: &role}, nil
+}
+
+func (s *server) actionPrepare(req *mafia.GameRequest) (*gameSession, *mafia.GameResponse, error) {
+	session, err := s.getSessionByPlayer(req.GetName())
+	if err != nil {
+		reason := err.Error()
+		return nil, &mafia.GameResponse{Success: false, Reason: &reason}, requestError
+	}
+
+	victimState, ok := session.states[req.GetVictim()]
+	if !ok {
+		reason := "VICTIM IS NOT IN THE GAME"
+		return nil, &mafia.GameResponse{Success: false, Reason: &reason}, requestError
+	}
+
+	if victimState != mafia.MafiaState_ALIVE {
+		reason := fmt.Sprintf("VICTIM %s is not alive", req.GetVictim())
+		return nil, &mafia.GameResponse{Success: false, Reason: &reason}, requestError
+	}
+
+	return session, &mafia.GameResponse{Success: true}, nil
+}
+
+func (s *server) mayBeNextNight(session *gameSession) {
+
+}
+
+func (s *server) mayBeNextDay(session *gameSession) {
+	if session.expectSearch || len(session.expectKillFrom.ToSlice()) > 0 {
+		return
+	}
+
+	for name, state := range session.states {
+		s.streams[name] <- &mafia.Event{Data: &mafia.Event_DayStarted{DayStarted: &mafia.DayStarted{
+			DayNum:       int32(session.dayCounter),
+			KilledVictim: session.lastKilled,
+		}}}
+
+		if state == mafia.MafiaState_ALIVE {
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskVote{AskVote: &mafia.Ask{
+				Default: s.getRandomAliveVictim(session),
+			}}}
+
+			session.expectFinishFrom.Add(name)
+			session.expectVoteFrom.Add(name)
+		}
+	}
+
+	session.lastKilled = ""
+}
+
+func (s *server) mayBeEndGame(session *gameSession) {
+
+}
+
+func (s *server) getSortedNames(session *gameSession) []string {
+	names := []string{}
+	for name := range session.players {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+	return names
+}
+
+func (s *server) getRandomAliveVictim(session *gameSession) string {
+	names := []string{}
+
+	for name, state := range session.states {
+		if state == mafia.MafiaState_ALIVE {
+			names = append(names, name)
+		}
+	}
+
+	names = slices.Shuffle(names)
+
+	if len(names) == 0 {
+		panic("get random names from len 0")
+	}
+
+	return names[0]
+}
+
+func (s *server) getSessionByPlayer(name string) (*gameSession, error) {
+	idx, ok := s.games[name]
+	if !ok {
+		return nil, errors.New("Session not found")
+	}
+
+	return s.sessions[idx], nil
+}
+
 func (s *server) shouldStartNewGame() bool {
 	actualWaiting := []string{}
 	for _, name := range s.newGameBuffer {
@@ -196,6 +362,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+
+	seed := time.Now().UnixNano()
+	rand.Seed(seed)
+
 	srv := grpc.NewServer()
 
 	s := NewServer()

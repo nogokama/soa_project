@@ -4,10 +4,15 @@ package reverse;
 option go_package = "soa_project/pkg/proto/mafia";
 
 enum MafiaRole {
-    MAFIA = 0;
-    CIVILIAN = 1;
-    SHERIFF = 2;
-    UNKNOWN = 3;
+    UNKNOWN = 0;
+    MAFIA = 1;
+    CIVILIAN = 2;
+    SHERIFF = 3;
+}
+
+enum MafiaState {
+    ALIVE = 0;
+    DEAD = 1;
 }
 
 service Mafia {
@@ -16,6 +21,7 @@ service Mafia {
  rpc Vote(GameRequest) returns (GameResponse) {}
  rpc Kill(GameRequest) returns (GameResponse) {}
  rpc Search(GameRequest) returns (GameResponse) {}
+ rpc FinishDay(GameRequest) returns (GameResponse) {}
 }
 
 message GetWaitingRequest {}
@@ -27,7 +33,6 @@ message GetWaitingResponse {
 message GameRequest {
     string name = 1;
     string victim = 2;
-    string default = 3;
 }
 
 message SearchResponse {
@@ -39,6 +44,7 @@ message SearchResponse {
 message GameResponse {
     bool success = 1;
     optional string reason = 2;
+    optional MafiaRole role = 3;
 }
 
 message RegisterRequest {
@@ -53,10 +59,26 @@ message Event {
         GameInterrupted game_interrupted = 4;
         string hello_message = 5;
         PingMessage ping = 6;
-        Void ask_search = 7;
-        Void ask_vote = 8;
-        Void ask_kill = 9;
+        Ask ask_search = 7;
+        Ask ask_vote = 8;
+        Ask ask_kill = 9;
+        DayStarted day_started = 10;
+        NightStarted night_started = 11;
+        GameFinished game_finished = 12;
     }
+}
+
+message GameFinished {
+    MafiaRole win_role = 1;
+}
+
+message DayStarted {
+   int32 day_num = 1; 
+   string killed_victim = 2;
+}
+
+message NightStarted {
+    int32 night_num = 1;
 }
 
 message PingMessage {}
@@ -74,4 +96,6 @@ message GameInterrupted {
     string reason = 1;
 }
 
-message Void {}
+message Ask {
+    string default = 1;
+}

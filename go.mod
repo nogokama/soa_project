@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/deckarep/golang-set/v2 v2.3.0 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect

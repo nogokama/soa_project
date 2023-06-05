@@ -2,15 +2,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"soa_project/client/game"
 	"soa_project/pkg/proto/mafia"
 	"soa_project/server/utils/algo"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 const (
@@ -19,6 +24,18 @@ const (
 
 	enterNamePrefix     = "[ENTER YOUR NAME:]"
 	waitForOthersPrefix = "[WAIT FOR OTHER PLAYERS]"
+
+	shouldKillPrefix   = "CHOOSE PLAYER TO KILL"
+	shouldSearchPrefix = "CHOOSE PLAYER TO CHECK"
+	shouldVotePrefix   = "CHOOSE PLAYER TO VOTE"
+
+	successWaitPrefix = "[SUCCESS, WAIT OTHERS]"
+
+	chillingPrefix = "[YOU ARE DEAD, WAIT OR EXIT]"
+)
+
+var (
+	validateError = errors.New("validate")
 )
 
 type Client struct {
@@ -49,17 +66,25 @@ type clientState struct {
 	waitingRoom []string
 
 	players map[string]mafia.MafiaRole
+	states  map[string]mafia.MafiaState
+
+	gameTime game.TimeType
+	dayNum   int
+
+	availableCommands mapset.Set[string]
 }
 
 func NewClient(screen tcell.Screen, cli mafia.MafiaClient) *Client {
 	return &Client{
 		state: clientState{
-			input:          "",
-			gameState:      game.StateRegister,
-			updatesBuffer:  NewCircularBuffer(10),
-			commandsBuffer: NewCircularBuffer(10),
-			waitingRoom:    []string{},
-			players:        make(map[string]mafia.MafiaRole),
+			input:             "",
+			gameState:         game.StateRegister,
+			updatesBuffer:     NewCircularBuffer(10),
+			commandsBuffer:    NewCircularBuffer(10),
+			waitingRoom:       []string{},
+			players:           make(map[string]mafia.MafiaRole),
+			states:            make(map[string]mafia.MafiaState),
+			availableCommands: mapset.NewSet(game.ExitCommand, game.AutoCommand),
 		},
 		screen:               screen,
 		connectionFailedChan: make(chan int),
@@ -135,6 +160,8 @@ func (c *Client) handleGameEvent(ev *mafia.Event) {
 		c.onAskSearch()
 	case *mafia.Event_AskVote:
 		c.onAskVote()
+	case *mafia.Event_DayStarted:
+		c.onDayStarted(event.DayStarted)
 	default:
 		log.Fatalln("unexpected")
 	}
@@ -142,16 +169,34 @@ func (c *Client) handleGameEvent(ev *mafia.Event) {
 	c.reRenderScreen()
 }
 
-func (c *Client) onAskKill() {
+func (c *Client) onDayStarted(day *mafia.DayStarted) {
+	c.state.dayNum = int(day.GetDayNum())
 
+	c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: DAY %d started", c.state.dayNum))
+
+	if day.GetKilledVictim() == c.state.myName {
+		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: YOU ARE KILLED :("))
+		c.state.gameState = game.StateChilling
+	} else {
+		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: player %s was KILLED :(", day.GetKilledVictim()))
+	}
+
+	c.state.states[day.GetKilledVictim()] = mafia.MafiaState_DEAD
+}
+
+func (c *Client) onAskKill() {
+	c.state.gameState = game.StateKilling
+	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldKillPrefix, 1, len(c.state.players))
 }
 
 func (c *Client) onAskSearch() {
-
+	c.state.gameState = game.StateSearching
+	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldSearchPrefix, 1, len(c.state.players))
 }
 
 func (c *Client) onAskVote() {
-
+	c.state.gameState = game.StateVoting
+	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldVotePrefix, 1, len(c.state.players))
 }
 
 func (c *Client) onGameStarted(gs *mafia.GameStarted) {
@@ -160,11 +205,13 @@ func (c *Client) onGameStarted(gs *mafia.GameStarted) {
 
 	for _, name := range gs.GetPlayers() {
 		c.state.players[name] = mafia.MafiaRole_UNKNOWN
+		c.state.states[name] = mafia.MafiaState_ALIVE
 	}
 
 	c.state.players[c.state.myName] = gs.GetRole()
 
 	c.state.gameState = game.StatePlaying
+	c.state.gameTime = game.TimeNight
 }
 
 func (c *Client) removeFromWaitingRoom(name string) {
@@ -190,32 +237,140 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 	case tcell.KeyEsc:
 		c.leaveGame()
 	case tcell.KeyEnter:
-		if strings.TrimSpace(strings.ToLower(c.state.input)) == "/exit" {
+		mayBeCommand := strings.TrimSpace(strings.ToLower(c.state.input))
+		switch mayBeCommand {
+		case game.ExitCommand:
 			c.leaveGame()
+		case game.AutoCommand:
+			// TODO switch auto mode
+		case game.FinishCommand:
+			c.onFinishCommand()
+		}
+
+		if mayBeCommand != "" {
+			c.state.inputError = ""
 		}
 
 		switch c.state.gameState {
 		case game.StateRegister:
 			c.onNameEntered()
-		case game.StateWaiting:
-			c.state.commandsBuffer.Add(c.state.input)
-		default:
-			c.state.updatesBuffer.Add(c.state.input)
+		case game.StateKilling:
+			c.onKillEntered()
+		case game.StateSearching:
+			c.onSearchEntered()
+		case game.StateVoting:
+			c.onVoteEntered()
 		}
-		c.state.input = ""
 
-		c.reRenderScreen()
+		c.state.commandsBuffer.Add(c.getFullInput())
+		c.state.input = ""
 
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		if len(c.state.input) > 0 {
 			c.state.input = c.state.input[:len(c.state.input)-1]
-			c.reRenderScreen()
 		}
-
 	default:
 		c.state.input += string(ev.Rune())
-		c.reRenderScreen()
 	}
+
+	c.reRenderScreen()
+}
+
+func (c *Client) onFinishCommand() {
+
+}
+
+func (c *Client) onKillEntered() {
+	name, err := c.validatePersonName(c.state.input)
+	if err != nil {
+		c.state.inputError = err.Error()
+		return
+	}
+
+	resp, err := c.grpcClient.Kill(context.Background(), &mafia.GameRequest{Name: c.state.myName, Victim: name})
+
+	if err = c.validateActionResp(resp, err); err != nil {
+		return
+	}
+}
+
+func (c *Client) onSearchEntered() {
+	name, err := c.validatePersonName(c.state.input)
+	if err != nil {
+		c.state.inputError = err.Error()
+		return
+	}
+
+	resp, err := c.grpcClient.Search(context.Background(), &mafia.GameRequest{Name: c.state.myName, Victim: name})
+
+	if err = c.validateActionResp(resp, err); err != nil {
+		return
+	}
+
+	victimRole := resp.GetRole()
+
+	if victimRole == mafia.MafiaRole_UNKNOWN {
+		c.state.inputError = "SERVER ERROR UNKNOWN RESULT"
+		c.state.gameState = game.StateSearching
+		return
+	}
+
+	c.state.players[name] = victimRole
+	c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: player %s is %s", name, game.GetRoleName(victimRole)))
+}
+
+func (c *Client) onVoteEntered() {
+	name, err := c.validatePersonName(c.state.input)
+	if err != nil {
+		c.state.inputError = err.Error()
+		return
+	}
+
+	resp, err := c.grpcClient.Vote(context.Background(), &mafia.GameRequest{Name: c.state.myName, Victim: name})
+
+	if err = c.validateActionResp(resp, err); err != nil {
+		return
+	}
+}
+
+func (c *Client) validateActionResp(resp *mafia.GameResponse, err error) error {
+	if err != nil {
+		c.state.inputError = err.Error()
+		return validateError
+	}
+
+	if !resp.GetSuccess() {
+		c.state.inputError = fmt.Sprintf("ERROR: %s", resp.GetReason())
+		return validateError
+	}
+
+	c.state.inputPrefix = successWaitPrefix
+	c.state.gameState = game.StatePlaying
+
+	return nil
+}
+
+func (c *Client) validatePersonName(input string) (string, error) {
+	names := []string{}
+	for name := range c.state.players {
+		names = append(names, name)
+		if input == name {
+			return name, nil
+		}
+	}
+
+	sort.Strings(names)
+
+	idx, err := strconv.Atoi(input)
+	if err != nil {
+		return "", fmt.Errorf("expected name of player of number 1-%d: %w", len(names), err)
+	}
+
+	if idx < 1 || idx > len(names) {
+		return "", fmt.Errorf("expected number from 1 to %d", len(names))
+	}
+
+	return names[idx-1], nil
 }
 
 func (c *Client) onNameEntered() {
@@ -290,18 +445,12 @@ func (c *Client) reRenderLeftScreen(x, y, width, height int) {
 		c.state.inputPrefix = enterNamePrefix
 	case game.StateWaiting:
 		c.state.inputPrefix = waitForOthersPrefix
-	case game.StatePlaying:
-		c.state.inputPrefix = ""
-	}
-
-	if c.state.gameState == game.StateRegister {
-		c.state.inputPrefix = enterNamePrefix
+	case game.StateChilling:
+		c.state.inputPrefix = chillingPrefix
 	}
 
 	b := strings.Builder{}
-	b.WriteString(c.state.inputPrefix)
-	b.WriteString(cmdPrefix)
-	b.WriteString(c.state.input)
+	b.WriteString(c.getFullInput())
 	b.WriteRune(cursorSymbol)
 
 	if c.state.inputError != "" {
@@ -316,13 +465,17 @@ func (c *Client) reRenderLeftScreen(x, y, width, height int) {
 	c.emitStr(x, y, width, b.String())
 }
 
+func (c *Client) getFullInput() string {
+	return fmt.Sprintf("%s%s%s", c.state.inputPrefix, cmdPrefix, c.state.input)
+}
+
 func (c *Client) reRenderRightScreen(x, y, width, height int) {
 	// choose right side
 
 	switch c.state.gameState {
 	case game.StateWaiting:
 		y = c.renderWaitingRoom(x, y, width, height)
-	case game.StatePlaying, game.StateKilling, game.StateSearching, game.StateVoting:
+	case game.StatePlaying, game.StateKilling, game.StateSearching, game.StateVoting, game.StateChilling:
 		y = c.renderGameRoom(x, y, width, height)
 	}
 
@@ -353,11 +506,23 @@ func (c *Client) renderGameRoom(x, y, width, height int) int {
 		longest = algo.Max(longest, len(b.String()))
 	}
 
+	names := []string{}
 	for name := range c.state.players {
-		c.emitStr(x, y, width, fmt.Sprintf("[%s]: %s", strings.Repeat(" ", longest), name))
-		c.emitInTheMiddle(x+1, y, longest, show[name])
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+
+	for idx, name := range names {
+		beginning := fmt.Sprintf(" %d) ", idx+1)
+		c.emitStr(x, y, width, fmt.Sprintf("%s[%s]: %s", beginning, strings.Repeat(" ", longest), name))
+		c.emitInTheMiddle(x+len(beginning)+1, y, longest, show[name])
 		y++
 	}
+
+	c.emitStr(x, y, width, strings.Repeat("-", width))
+
+	y++
 
 	return y
 }
