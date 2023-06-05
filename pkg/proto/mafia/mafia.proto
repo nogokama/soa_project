@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package reverse;
+option go_package = "soa_project/pkg/proto/mafia";
+
+enum MafiaRole {
+    MAFIA = 0;
+    CIVILIAN = 1;
+    SHERIFF = 2;
+    UNKNOWN = 3;
+}
+
+service Mafia {
+ rpc Register(RegisterRequest) returns (stream Event) {}
+ rpc GetWaitingRoom(GetWaitingRequest) returns (GetWaitingResponse) {}
+ rpc Vote(GameRequest) returns (GameResponse) {}
+ rpc Kill(GameRequest) returns (GameResponse) {}
+ rpc Search(GameRequest) returns (GameResponse) {}
+}
+
+message GetWaitingRequest {}
+
+message GetWaitingResponse {
+    repeated string players = 1;
+}
+
+message GameRequest {
+    string name = 1;
+    string victim = 2;
+    string default = 3;
+}
+
+message SearchResponse {
+    bool success = 1;
+    optional MafiaRole role = 2;
+    optional string reason = 3;
+}
+
+message GameResponse {
+    bool success = 1;
+    optional string reason = 2;
+}
+
+message RegisterRequest {
+    string name =1;
+}
+
+message Event {
+    oneof data {
+        PersonEvent connect = 1;
+        PersonEvent disconnect = 2;
+        GameStarted game_started = 3;
+        GameInterrupted game_interrupted = 4;
+        string hello_message = 5;
+        PingMessage ping = 6;
+        Void ask_search = 7;
+        Void ask_vote = 8;
+        Void ask_kill = 9;
+    }
+}
+
+message PingMessage {}
+
+message PersonEvent {
+    string personName = 1;
+}
+
+message GameStarted {
+    repeated string players =1;
+    MafiaRole role =2;
+}
+
+message GameInterrupted {
+    string reason = 1;
+}
+
+message Void {}
