@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,9 @@ import (
 )
 
 func main() {
+	server := flag.String("server", "mafia_server:10000", "Server address")
+	flag.Parse()
+
 	encoding.Register()
 
 	logFile, err := os.Create("debug.log")
@@ -25,7 +29,10 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetPrefix("[DEBUG] ")
 
-	conn, err := grpc.Dial(":9000", grpc.WithInsecure(), grpc.WithBlock())
+	log.Println("printing")
+	log.Println(os.Getenv("SERVER_ADDR"))
+
+	conn, err := grpc.Dial(*server, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalln(err)
 	}

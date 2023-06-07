@@ -22,6 +22,9 @@ const (
 	cursorSymbol = '\u2588'
 	cmdPrefix    = "/>"
 
+	mafiaGameName     = "MAFIA GAME"
+	autoMafiaGameName = "MAFIA GAME [AUTOMATIC MODE]"
+
 	enterNamePrefix     = "[ENTER YOUR NAME:]"
 	waitForOthersPrefix = "[WAIT FOR OTHER PLAYERS]"
 
@@ -31,7 +34,11 @@ const (
 
 	successWaitPrefix = "[SUCCESS, WAIT OTHERS]"
 
-	chillingPrefix = "[YOU ARE DEAD, WAIT OR EXIT]"
+	deadChillingPrefix = "[YOU ARE DEAD, WAIT OR EXIT]"
+
+	finishRequiredPrefix = "[/finish the day]"
+
+	gameFinishedPrefix = "[GAME FINISHED]"
 )
 
 var (
@@ -72,6 +79,9 @@ type clientState struct {
 	dayNum   int
 
 	availableCommands mapset.Set[string]
+
+	autoMode bool
+	lastAsk  *mafia.Ask
 }
 
 func NewClient(screen tcell.Screen, cli mafia.MafiaClient) *Client {
@@ -80,11 +90,11 @@ func NewClient(screen tcell.Screen, cli mafia.MafiaClient) *Client {
 			input:             "",
 			gameState:         game.StateRegister,
 			updatesBuffer:     NewCircularBuffer(10),
-			commandsBuffer:    NewCircularBuffer(10),
+			commandsBuffer:    NewCircularBuffer(100),
 			waitingRoom:       []string{},
 			players:           make(map[string]mafia.MafiaRole),
 			states:            make(map[string]mafia.MafiaState),
-			availableCommands: mapset.NewSet(game.ExitCommand, game.AutoCommand),
+			availableCommands: mapset.NewSet(game.ExitCommandDesc),
 			dayNum:            1,
 		},
 		screen:               screen,
@@ -156,16 +166,19 @@ func (c *Client) handleGameEvent(ev *mafia.Event) {
 	case *mafia.Event_GameStarted:
 		c.onGameStarted(event.GameStarted)
 	case *mafia.Event_AskKill:
-		c.onAskKill()
+		c.onAskKill(event.AskKill)
 	case *mafia.Event_AskSearch:
-		c.onAskSearch()
+		c.onAskSearch(event.AskSearch)
 	case *mafia.Event_AskVote:
-		c.onAskVote()
+		c.onAskVote(event.AskVote)
 	case *mafia.Event_DayStarted:
 		c.onDayStarted(event.DayStarted)
 	case *mafia.Event_NightStarted:
-		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: NIGHT %d started", event.NightStarted.GetNightNum()))
-		c.state.dayNum = int(event.NightStarted.GetNightNum())
+		c.onNightStarted(event.NightStarted)
+	case *mafia.Event_VotingCompleted:
+		c.onVotingCompleted(event.VotingCompleted)
+	case *mafia.Event_GameFinished:
+		c.onGameFinished(event.GameFinished)
 	default:
 		log.Fatalln("unexpected")
 	}
@@ -173,14 +186,50 @@ func (c *Client) handleGameEvent(ev *mafia.Event) {
 	c.reRenderScreen()
 }
 
+func (c *Client) onVotingCompleted(vc *mafia.VotingCompleted) {
+	if vc.KilledVictim == nil {
+		c.state.updatesBuffer.Add("[SYSTEM]: NOBODY KILLED ON VOTING")
+	} else {
+		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: %s WAS KILLED ON VOTING", *vc.KilledVictim))
+		c.state.states[vc.GetKilledVictim()] = mafia.MafiaState_DEAD
+	}
+}
+
+func (c *Client) onNightStarted(ns *mafia.NightStarted) {
+	c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: NIGHT %d started", ns.GetNightNum()))
+	c.state.gameTime = game.TimeNight
+	c.state.dayNum = int(ns.GetNightNum())
+}
+
+func (c *Client) onGameFinished(g *mafia.GameFinished) {
+	c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: Game finished!"))
+	switch g.WinRole {
+	case mafia.MafiaRole_CIVILIAN:
+		c.state.updatesBuffer.Add("[SYSTEM]: CIVILIANS & SHERIFF WON!")
+	case mafia.MafiaRole_MAFIA:
+		c.state.updatesBuffer.Add("[SYSTEM]: MAFIA WON!")
+	}
+
+	c.state.gameState = game.StateChilling
+	c.state.inputPrefix = gameFinishedPrefix
+
+	c.state.availableCommands.Remove(game.AutoCommandDesc)
+	c.state.availableCommands.Add(game.ReplayCommandDesc)
+
+	c.state.autoMode = false
+	c.state.lastAsk = nil
+}
+
 func (c *Client) onDayStarted(day *mafia.DayStarted) {
 	c.state.dayNum = int(day.GetDayNum())
+	c.state.gameTime = game.TimeDay
 
 	c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: DAY %d started", c.state.dayNum))
 
 	if day.GetKilledVictim() == c.state.myName {
 		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: YOU ARE KILLED :("))
 		c.state.gameState = game.StateChilling
+		c.state.inputPrefix = deadChillingPrefix
 	} else {
 		c.state.updatesBuffer.Add(fmt.Sprintf("[SYSTEM]: player %s was KILLED :(", day.GetKilledVictim()))
 	}
@@ -188,24 +237,43 @@ func (c *Client) onDayStarted(day *mafia.DayStarted) {
 	c.state.states[day.GetKilledVictim()] = mafia.MafiaState_DEAD
 }
 
-func (c *Client) onAskKill() {
+func (c *Client) onAskKill(ask *mafia.Ask) {
+	c.state.lastAsk = ask
 	c.state.gameState = game.StateKilling
 	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldKillPrefix, 1, len(c.state.players))
+
+	if c.state.autoMode {
+		c.state.input = ask.GetDefault()
+		c.handleEnter()
+	}
 }
 
-func (c *Client) onAskSearch() {
+func (c *Client) onAskSearch(ask *mafia.Ask) {
+	c.state.lastAsk = ask
 	c.state.gameState = game.StateSearching
 	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldSearchPrefix, 1, len(c.state.players))
+
+	if c.state.autoMode {
+		c.state.input = ask.GetDefault()
+		c.handleEnter()
+	}
 }
 
-func (c *Client) onAskVote() {
+func (c *Client) onAskVote(ask *mafia.Ask) {
+	c.state.lastAsk = ask
 	c.state.gameState = game.StateVoting
 	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldVotePrefix, 1, len(c.state.players))
+
+	if c.state.autoMode {
+		c.state.input = ask.GetDefault()
+		c.handleEnter()
+	}
 }
 
 func (c *Client) onGameStarted(gs *mafia.GameStarted) {
 	c.state.updatesBuffer.Clear()
 	c.state.updatesBuffer.Add("[SYSTEM]: GAME STARTED")
+	c.state.commandsBuffer.Clear()
 
 	for _, name := range gs.GetPlayers() {
 		c.state.players[name] = mafia.MafiaRole_UNKNOWN
@@ -216,6 +284,7 @@ func (c *Client) onGameStarted(gs *mafia.GameStarted) {
 
 	c.state.gameState = game.StatePlaying
 	c.state.gameTime = game.TimeNight
+	c.state.dayNum = 1
 }
 
 func (c *Client) removeFromWaitingRoom(name string) {
@@ -241,32 +310,8 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 	case tcell.KeyEsc:
 		c.leaveGame()
 	case tcell.KeyEnter:
-		mayBeCommand := strings.TrimSpace(strings.ToLower(c.state.input))
-		switch mayBeCommand {
-		case game.ExitCommand:
-			c.leaveGame()
-		case game.AutoCommand:
-			// TODO switch auto mode
-		case game.FinishCommand:
-			c.onFinishCommand()
-		}
-
-		if mayBeCommand != "" {
-			c.state.inputError = ""
-		}
-
-		c.state.input = strings.TrimSpace(c.state.input)
-		c.state.commandsBuffer.Add(c.getFullInput())
-
-		switch c.state.gameState {
-		case game.StateRegister:
-			c.onNameEntered()
-		case game.StateKilling:
-			c.onKillEntered()
-		case game.StateSearching:
-			c.onSearchEntered()
-		case game.StateVoting:
-			c.onVoteEntered()
+		if !c.state.autoMode {
+			c.handleEnter()
 		}
 
 		c.state.input = ""
@@ -282,8 +327,81 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 	c.reRenderScreen()
 }
 
-func (c *Client) onFinishCommand() {
+func (c *Client) handleEnter() {
+	mayBeCommand := strings.TrimSpace(strings.ToLower(c.state.input))
 
+	found := false
+	for cmd := range c.state.availableCommands.Iter() {
+		if strings.HasPrefix(cmd, mayBeCommand) {
+			found = true
+		}
+	}
+	if found {
+		switch mayBeCommand {
+		case game.ExitCommand:
+			c.leaveGame()
+		case game.AutoCommand:
+			c.onAutoCommand()
+		case game.ReplayCommand:
+			c.onReplayCommand()
+		case game.FinishCommand:
+			c.onFinishCommand()
+		}
+	}
+
+	if mayBeCommand != "" {
+		c.state.inputError = ""
+	}
+
+	c.state.input = strings.TrimSpace(c.state.input)
+	c.state.commandsBuffer.Add(c.getFullInput())
+
+	switch c.state.gameState {
+	case game.StateRegister:
+		c.onNameEntered()
+	case game.StateKilling:
+		c.onKillEntered()
+	case game.StateSearching:
+		c.onSearchEntered()
+	case game.StateVoting:
+		c.onVoteEntered()
+	}
+
+	c.state.input = ""
+}
+
+func (c *Client) onAutoCommand() {
+	c.state.autoMode = true
+	c.state.input = c.state.lastAsk.GetDefault()
+
+	c.state.availableCommands.Remove(game.AutoCommandDesc)
+	c.handleEnter()
+}
+
+func (c *Client) onReplayCommand() {
+	resp, err := c.grpcClient.JoinWaitingRoom(context.Background(), &mafia.JoinRequest{
+		Name: c.state.myName,
+	})
+	if err != nil {
+		c.state.inputError = err.Error()
+		return
+	}
+
+	c.state.gameState = game.StateWaiting
+	c.state.waitingRoom = resp.GetPlayers()
+
+	c.state.availableCommands.Remove(game.ReplayCommandDesc)
+	c.state.availableCommands.Add(game.AutoCommandDesc)
+}
+
+func (c *Client) onFinishCommand() {
+	resp, err := c.grpcClient.FinishDay(context.Background(), &mafia.FinishDayRequest{Name: c.state.myName})
+	if err = c.validateActionResp(resp, err); err != nil {
+		return
+	}
+
+	c.state.availableCommands.Remove(game.FinishCommandDesc)
+	c.state.inputPrefix = successWaitPrefix
 }
 
 func (c *Client) onKillEntered() {
@@ -336,6 +454,17 @@ func (c *Client) onVoteEntered() {
 
 	if err = c.validateActionResp(resp, err); err != nil {
 		return
+	}
+
+	c.state.availableCommands.Add(game.FinishCommandDesc)
+	c.state.inputPrefix = finishRequiredPrefix
+	c.state.gameState = game.StatePlaying
+
+	c.state.lastAsk = &mafia.Ask{Default: game.FinishCommand}
+
+	if c.state.autoMode {
+		c.state.input = game.FinishCommand
+		c.handleEnter()
 	}
 }
 
@@ -402,6 +531,8 @@ func (c *Client) onNameEntered() {
 
 	c.state.inputError = ""
 	c.state.gameState = game.StateWaiting
+	c.state.availableCommands.Add(game.AutoCommandDesc)
+
 	go c.listenGameEvents()
 }
 
@@ -431,15 +562,19 @@ func (c *Client) reRenderScreen() {
 		screen.SetContent(col, screenHeight-1, '─', nil, borderStyle)
 	}
 
-	c.emitStr(screenWidth/2-5, 1, screenWidth, "MAFIA GAME")
+	if c.state.autoMode {
+		c.emitInTheMiddle(1, 1, screenWidth-2, autoMafiaGameName)
+	} else {
+		c.emitInTheMiddle(1, 1, screenWidth-2, mafiaGameName)
+	}
 
 	// Draw split-screen line
 	for row := 4; row < screenHeight-1; row++ {
 		screen.SetContent(screenWidth/2, row, '│', nil, borderStyle)
 	}
 
-	c.reRenderLeftScreen(1, 3, screenWidth/2-1, screenHeight-2)
-	c.reRenderRightScreen(screenWidth/2+1, 3, screenWidth-(screenWidth/2-1)-3, screenHeight-2)
+	c.reRenderLeftScreen(1, 3, screenWidth/2-1, screenHeight-4)
+	c.reRenderRightScreen(screenWidth/2+1, 3, screenWidth-(screenWidth/2-1)-3, screenHeight-4)
 
 	screen.Show()
 }
@@ -452,8 +587,6 @@ func (c *Client) reRenderLeftScreen(x, y, width, height int) {
 		c.state.inputPrefix = enterNamePrefix
 	case game.StateWaiting:
 		c.state.inputPrefix = waitForOthersPrefix
-	case game.StateChilling:
-		c.state.inputPrefix = chillingPrefix
 	}
 
 	b := strings.Builder{}
@@ -469,14 +602,33 @@ func (c *Client) reRenderLeftScreen(x, y, width, height int) {
 		y++
 	}
 
-	cmds := c.state.commandsBuffer.GetReversed()
-	limit := algo.Min(len(cmds), bottomLimit-y-1)
+	commands := c.state.availableCommands.ToSlice()
+	sort.Strings(commands)
 
-	for i := 0; i < limit; i++ {
-		c.emitStr(x, y+limit-i-1, width, cmds[i])
+	bottomRow := bottomLimit - 1
+	for _, cmd := range commands {
+		c.emitStr(x, bottomRow, width, cmd)
+		bottomRow--
 	}
 
-	c.emitStr(x, y+limit, width, b.String())
+	c.emitInTheMiddle(x, bottomRow, width, "COMMANDS:")
+	bottomRow--
+	c.emitStr(x, bottomRow, width, strings.Repeat("-", width))
+
+	rows := []string{b.String()}
+	rows = append(rows, c.state.commandsBuffer.GetReversed()...)
+
+	c.renderRows(x, y, width, bottomRow-y, rows)
+}
+
+func (c *Client) renderRows(x, y, width, height int, rows []string) {
+	bottomLimit := y + height
+
+	limit := algo.Min(len(rows), bottomLimit-y-1)
+
+	for i := 0; i < limit; i++ {
+		c.emitStr(x, y+limit-i-1, width, rows[i])
+	}
 }
 
 func (c *Client) getFullInput() string {
@@ -486,6 +638,8 @@ func (c *Client) getFullInput() string {
 func (c *Client) reRenderRightScreen(x, y, width, height int) {
 	// choose right side
 
+	bottomLimit := y + height
+
 	switch c.state.gameState {
 	case game.StateWaiting:
 		y = c.renderWaitingRoom(x, y, width, height)
@@ -493,12 +647,8 @@ func (c *Client) reRenderRightScreen(x, y, width, height int) {
 		y = c.renderGameRoom(x, y, width, height)
 	}
 
-	// TODO calculate limit
-	commands := c.state.updatesBuffer.Get()
-
-	for i, command := range commands {
-		c.emitStr(x, y+i, width, command)
-	}
+	commands := c.state.updatesBuffer.GetReversed()
+	c.renderRows(x, y, width, bottomLimit-y, commands)
 }
 
 func (c *Client) renderGameRoom(x, y, width, height int) int {

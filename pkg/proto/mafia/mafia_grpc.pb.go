@@ -19,12 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Mafia_Register_FullMethodName       = "/reverse.Mafia/Register"
-	Mafia_GetWaitingRoom_FullMethodName = "/reverse.Mafia/GetWaitingRoom"
-	Mafia_Vote_FullMethodName           = "/reverse.Mafia/Vote"
-	Mafia_Kill_FullMethodName           = "/reverse.Mafia/Kill"
-	Mafia_Search_FullMethodName         = "/reverse.Mafia/Search"
-	Mafia_FinishDay_FullMethodName      = "/reverse.Mafia/FinishDay"
+	Mafia_Register_FullMethodName        = "/reverse.Mafia/Register"
+	Mafia_JoinWaitingRoom_FullMethodName = "/reverse.Mafia/JoinWaitingRoom"
+	Mafia_Vote_FullMethodName            = "/reverse.Mafia/Vote"
+	Mafia_Kill_FullMethodName            = "/reverse.Mafia/Kill"
+	Mafia_Search_FullMethodName          = "/reverse.Mafia/Search"
+	Mafia_FinishDay_FullMethodName       = "/reverse.Mafia/FinishDay"
 )
 
 // MafiaClient is the client API for Mafia service.
@@ -32,11 +32,11 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MafiaClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (Mafia_RegisterClient, error)
-	GetWaitingRoom(ctx context.Context, in *GetWaitingRequest, opts ...grpc.CallOption) (*GetWaitingResponse, error)
+	JoinWaitingRoom(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error)
 	Vote(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
 	Kill(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
 	Search(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
-	FinishDay(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error)
+	FinishDay(ctx context.Context, in *FinishDayRequest, opts ...grpc.CallOption) (*GameResponse, error)
 }
 
 type mafiaClient struct {
@@ -79,9 +79,9 @@ func (x *mafiaRegisterClient) Recv() (*Event, error) {
 	return m, nil
 }
 
-func (c *mafiaClient) GetWaitingRoom(ctx context.Context, in *GetWaitingRequest, opts ...grpc.CallOption) (*GetWaitingResponse, error) {
-	out := new(GetWaitingResponse)
-	err := c.cc.Invoke(ctx, Mafia_GetWaitingRoom_FullMethodName, in, out, opts...)
+func (c *mafiaClient) JoinWaitingRoom(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error) {
+	out := new(JoinResponse)
+	err := c.cc.Invoke(ctx, Mafia_JoinWaitingRoom_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (c *mafiaClient) Search(ctx context.Context, in *GameRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *mafiaClient) FinishDay(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (*GameResponse, error) {
+func (c *mafiaClient) FinishDay(ctx context.Context, in *FinishDayRequest, opts ...grpc.CallOption) (*GameResponse, error) {
 	out := new(GameResponse)
 	err := c.cc.Invoke(ctx, Mafia_FinishDay_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -129,11 +129,11 @@ func (c *mafiaClient) FinishDay(ctx context.Context, in *GameRequest, opts ...gr
 // for forward compatibility
 type MafiaServer interface {
 	Register(*RegisterRequest, Mafia_RegisterServer) error
-	GetWaitingRoom(context.Context, *GetWaitingRequest) (*GetWaitingResponse, error)
+	JoinWaitingRoom(context.Context, *JoinRequest) (*JoinResponse, error)
 	Vote(context.Context, *GameRequest) (*GameResponse, error)
 	Kill(context.Context, *GameRequest) (*GameResponse, error)
 	Search(context.Context, *GameRequest) (*GameResponse, error)
-	FinishDay(context.Context, *GameRequest) (*GameResponse, error)
+	FinishDay(context.Context, *FinishDayRequest) (*GameResponse, error)
 	mustEmbedUnimplementedMafiaServer()
 }
 
@@ -144,8 +144,8 @@ type UnimplementedMafiaServer struct {
 func (UnimplementedMafiaServer) Register(*RegisterRequest, Mafia_RegisterServer) error {
 	return status.Errorf(codes.Unimplemented, "method Register not implemented")
 }
-func (UnimplementedMafiaServer) GetWaitingRoom(context.Context, *GetWaitingRequest) (*GetWaitingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetWaitingRoom not implemented")
+func (UnimplementedMafiaServer) JoinWaitingRoom(context.Context, *JoinRequest) (*JoinResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method JoinWaitingRoom not implemented")
 }
 func (UnimplementedMafiaServer) Vote(context.Context, *GameRequest) (*GameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Vote not implemented")
@@ -156,7 +156,7 @@ func (UnimplementedMafiaServer) Kill(context.Context, *GameRequest) (*GameRespon
 func (UnimplementedMafiaServer) Search(context.Context, *GameRequest) (*GameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Search not implemented")
 }
-func (UnimplementedMafiaServer) FinishDay(context.Context, *GameRequest) (*GameResponse, error) {
+func (UnimplementedMafiaServer) FinishDay(context.Context, *FinishDayRequest) (*GameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FinishDay not implemented")
 }
 func (UnimplementedMafiaServer) mustEmbedUnimplementedMafiaServer() {}
@@ -193,20 +193,20 @@ func (x *mafiaRegisterServer) Send(m *Event) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _Mafia_GetWaitingRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetWaitingRequest)
+func _Mafia_JoinWaitingRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JoinRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MafiaServer).GetWaitingRoom(ctx, in)
+		return srv.(MafiaServer).JoinWaitingRoom(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Mafia_GetWaitingRoom_FullMethodName,
+		FullMethod: Mafia_JoinWaitingRoom_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MafiaServer).GetWaitingRoom(ctx, req.(*GetWaitingRequest))
+		return srv.(MafiaServer).JoinWaitingRoom(ctx, req.(*JoinRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -266,7 +266,7 @@ func _Mafia_Search_Handler(srv interface{}, ctx context.Context, dec func(interf
 }
 
 func _Mafia_FinishDay_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GameRequest)
+	in := new(FinishDayRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func _Mafia_FinishDay_Handler(srv interface{}, ctx context.Context, dec func(int
 		FullMethod: Mafia_FinishDay_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MafiaServer).FinishDay(ctx, req.(*GameRequest))
+		return srv.(MafiaServer).FinishDay(ctx, req.(*FinishDayRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -291,8 +291,8 @@ var Mafia_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MafiaServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetWaitingRoom",
-			Handler:    _Mafia_GetWaitingRoom_Handler,
+			MethodName: "JoinWaitingRoom",
+			Handler:    _Mafia_JoinWaitingRoom_Handler,
 		},
 		{
 			MethodName: "Vote",

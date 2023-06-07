@@ -118,14 +118,16 @@ func (MafiaState) EnumDescriptor() ([]byte, []int) {
 	return file_mafia_proto_rawDescGZIP(), []int{1}
 }
 
-type GetWaitingRequest struct {
+type FinishDayRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 }
 
-func (x *GetWaitingRequest) Reset() {
-	*x = GetWaitingRequest{}
+func (x *FinishDayRequest) Reset() {
+	*x = FinishDayRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_mafia_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -133,13 +135,13 @@ func (x *GetWaitingRequest) Reset() {
 	}
 }
 
-func (x *GetWaitingRequest) String() string {
+func (x *FinishDayRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetWaitingRequest) ProtoMessage() {}
+func (*FinishDayRequest) ProtoMessage() {}
 
-func (x *GetWaitingRequest) ProtoReflect() protoreflect.Message {
+func (x *FinishDayRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_mafia_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -151,21 +153,28 @@ func (x *GetWaitingRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetWaitingRequest.ProtoReflect.Descriptor instead.
-func (*GetWaitingRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use FinishDayRequest.ProtoReflect.Descriptor instead.
+func (*FinishDayRequest) Descriptor() ([]byte, []int) {
 	return file_mafia_proto_rawDescGZIP(), []int{0}
 }
 
-type GetWaitingResponse struct {
+func (x *FinishDayRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type JoinRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Players []string `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 }
 
-func (x *GetWaitingResponse) Reset() {
-	*x = GetWaitingResponse{}
+func (x *JoinRequest) Reset() {
+	*x = JoinRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_mafia_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -173,13 +182,13 @@ func (x *GetWaitingResponse) Reset() {
 	}
 }
 
-func (x *GetWaitingResponse) String() string {
+func (x *JoinRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetWaitingResponse) ProtoMessage() {}
+func (*JoinRequest) ProtoMessage() {}
 
-func (x *GetWaitingResponse) ProtoReflect() protoreflect.Message {
+func (x *JoinRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_mafia_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -191,12 +200,59 @@ func (x *GetWaitingResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetWaitingResponse.ProtoReflect.Descriptor instead.
-func (*GetWaitingResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use JoinRequest.ProtoReflect.Descriptor instead.
+func (*JoinRequest) Descriptor() ([]byte, []int) {
 	return file_mafia_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetWaitingResponse) GetPlayers() []string {
+func (x *JoinRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type JoinResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Players []string `protobuf:"bytes,1,rep,name=players,proto3" json:"players,omitempty"`
+}
+
+func (x *JoinResponse) Reset() {
+	*x = JoinResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_mafia_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *JoinResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinResponse) ProtoMessage() {}
+
+func (x *JoinResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mafia_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinResponse.ProtoReflect.Descriptor instead.
+func (*JoinResponse) Descriptor() ([]byte, []int) {
+	return file_mafia_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *JoinResponse) GetPlayers() []string {
 	if x != nil {
 		return x.Players
 	}
@@ -215,7 +271,7 @@ type GameRequest struct {
 func (x *GameRequest) Reset() {
 	*x = GameRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[2]
+		mi := &file_mafia_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -228,7 +284,7 @@ func (x *GameRequest) String() string {
 func (*GameRequest) ProtoMessage() {}
 
 func (x *GameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[2]
+	mi := &file_mafia_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -241,7 +297,7 @@ func (x *GameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameRequest.ProtoReflect.Descriptor instead.
 func (*GameRequest) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{2}
+	return file_mafia_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GameRequest) GetName() string {
@@ -271,7 +327,7 @@ type SearchResponse struct {
 func (x *SearchResponse) Reset() {
 	*x = SearchResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[3]
+		mi := &file_mafia_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -284,7 +340,7 @@ func (x *SearchResponse) String() string {
 func (*SearchResponse) ProtoMessage() {}
 
 func (x *SearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[3]
+	mi := &file_mafia_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -297,7 +353,7 @@ func (x *SearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResponse.ProtoReflect.Descriptor instead.
 func (*SearchResponse) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{3}
+	return file_mafia_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SearchResponse) GetSuccess() bool {
@@ -334,7 +390,7 @@ type GameResponse struct {
 func (x *GameResponse) Reset() {
 	*x = GameResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[4]
+		mi := &file_mafia_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -347,7 +403,7 @@ func (x *GameResponse) String() string {
 func (*GameResponse) ProtoMessage() {}
 
 func (x *GameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[4]
+	mi := &file_mafia_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -360,7 +416,7 @@ func (x *GameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameResponse.ProtoReflect.Descriptor instead.
 func (*GameResponse) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{4}
+	return file_mafia_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GameResponse) GetSuccess() bool {
@@ -395,7 +451,7 @@ type RegisterRequest struct {
 func (x *RegisterRequest) Reset() {
 	*x = RegisterRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[5]
+		mi := &file_mafia_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -408,7 +464,7 @@ func (x *RegisterRequest) String() string {
 func (*RegisterRequest) ProtoMessage() {}
 
 func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[5]
+	mi := &file_mafia_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,7 +477,7 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterRequest.ProtoReflect.Descriptor instead.
 func (*RegisterRequest) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{5}
+	return file_mafia_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RegisterRequest) GetName() string {
@@ -450,13 +506,14 @@ type Event struct {
 	//	*Event_DayStarted
 	//	*Event_NightStarted
 	//	*Event_GameFinished
+	//	*Event_VotingCompleted
 	Data isEvent_Data `protobuf_oneof:"data"`
 }
 
 func (x *Event) Reset() {
 	*x = Event{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[6]
+		mi := &file_mafia_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -469,7 +526,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[6]
+	mi := &file_mafia_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -482,7 +539,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{6}
+	return file_mafia_proto_rawDescGZIP(), []int{7}
 }
 
 func (m *Event) GetData() isEvent_Data {
@@ -576,6 +633,13 @@ func (x *Event) GetGameFinished() *GameFinished {
 	return nil
 }
 
+func (x *Event) GetVotingCompleted() *VotingCompleted {
+	if x, ok := x.GetData().(*Event_VotingCompleted); ok {
+		return x.VotingCompleted
+	}
+	return nil
+}
+
 type isEvent_Data interface {
 	isEvent_Data()
 }
@@ -628,6 +692,10 @@ type Event_GameFinished struct {
 	GameFinished *GameFinished `protobuf:"bytes,12,opt,name=game_finished,json=gameFinished,proto3,oneof"`
 }
 
+type Event_VotingCompleted struct {
+	VotingCompleted *VotingCompleted `protobuf:"bytes,13,opt,name=voting_completed,json=votingCompleted,proto3,oneof"`
+}
+
 func (*Event_Connect) isEvent_Data() {}
 
 func (*Event_Disconnect) isEvent_Data() {}
@@ -652,6 +720,55 @@ func (*Event_NightStarted) isEvent_Data() {}
 
 func (*Event_GameFinished) isEvent_Data() {}
 
+func (*Event_VotingCompleted) isEvent_Data() {}
+
+type VotingCompleted struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	KilledVictim *string `protobuf:"bytes,1,opt,name=killed_victim,json=killedVictim,proto3,oneof" json:"killed_victim,omitempty"`
+}
+
+func (x *VotingCompleted) Reset() {
+	*x = VotingCompleted{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_mafia_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *VotingCompleted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotingCompleted) ProtoMessage() {}
+
+func (x *VotingCompleted) ProtoReflect() protoreflect.Message {
+	mi := &file_mafia_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotingCompleted.ProtoReflect.Descriptor instead.
+func (*VotingCompleted) Descriptor() ([]byte, []int) {
+	return file_mafia_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *VotingCompleted) GetKilledVictim() string {
+	if x != nil && x.KilledVictim != nil {
+		return *x.KilledVictim
+	}
+	return ""
+}
+
 type GameFinished struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -663,7 +780,7 @@ type GameFinished struct {
 func (x *GameFinished) Reset() {
 	*x = GameFinished{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[7]
+		mi := &file_mafia_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -676,7 +793,7 @@ func (x *GameFinished) String() string {
 func (*GameFinished) ProtoMessage() {}
 
 func (x *GameFinished) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[7]
+	mi := &file_mafia_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +806,7 @@ func (x *GameFinished) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameFinished.ProtoReflect.Descriptor instead.
 func (*GameFinished) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{7}
+	return file_mafia_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GameFinished) GetWinRole() MafiaRole {
@@ -711,7 +828,7 @@ type DayStarted struct {
 func (x *DayStarted) Reset() {
 	*x = DayStarted{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[8]
+		mi := &file_mafia_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -724,7 +841,7 @@ func (x *DayStarted) String() string {
 func (*DayStarted) ProtoMessage() {}
 
 func (x *DayStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[8]
+	mi := &file_mafia_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -737,7 +854,7 @@ func (x *DayStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DayStarted.ProtoReflect.Descriptor instead.
 func (*DayStarted) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{8}
+	return file_mafia_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DayStarted) GetDayNum() int32 {
@@ -765,7 +882,7 @@ type NightStarted struct {
 func (x *NightStarted) Reset() {
 	*x = NightStarted{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[9]
+		mi := &file_mafia_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -778,7 +895,7 @@ func (x *NightStarted) String() string {
 func (*NightStarted) ProtoMessage() {}
 
 func (x *NightStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[9]
+	mi := &file_mafia_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -791,7 +908,7 @@ func (x *NightStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NightStarted.ProtoReflect.Descriptor instead.
 func (*NightStarted) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{9}
+	return file_mafia_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *NightStarted) GetNightNum() int32 {
@@ -810,7 +927,7 @@ type PingMessage struct {
 func (x *PingMessage) Reset() {
 	*x = PingMessage{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[10]
+		mi := &file_mafia_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -823,7 +940,7 @@ func (x *PingMessage) String() string {
 func (*PingMessage) ProtoMessage() {}
 
 func (x *PingMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[10]
+	mi := &file_mafia_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -836,7 +953,7 @@ func (x *PingMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingMessage.ProtoReflect.Descriptor instead.
 func (*PingMessage) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{10}
+	return file_mafia_proto_rawDescGZIP(), []int{12}
 }
 
 type PersonEvent struct {
@@ -850,7 +967,7 @@ type PersonEvent struct {
 func (x *PersonEvent) Reset() {
 	*x = PersonEvent{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[11]
+		mi := &file_mafia_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -863,7 +980,7 @@ func (x *PersonEvent) String() string {
 func (*PersonEvent) ProtoMessage() {}
 
 func (x *PersonEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[11]
+	mi := &file_mafia_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +993,7 @@ func (x *PersonEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersonEvent.ProtoReflect.Descriptor instead.
 func (*PersonEvent) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{11}
+	return file_mafia_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PersonEvent) GetPersonName() string {
@@ -898,7 +1015,7 @@ type GameStarted struct {
 func (x *GameStarted) Reset() {
 	*x = GameStarted{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[12]
+		mi := &file_mafia_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -911,7 +1028,7 @@ func (x *GameStarted) String() string {
 func (*GameStarted) ProtoMessage() {}
 
 func (x *GameStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[12]
+	mi := &file_mafia_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -924,7 +1041,7 @@ func (x *GameStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameStarted.ProtoReflect.Descriptor instead.
 func (*GameStarted) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{12}
+	return file_mafia_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GameStarted) GetPlayers() []string {
@@ -952,7 +1069,7 @@ type GameInterrupted struct {
 func (x *GameInterrupted) Reset() {
 	*x = GameInterrupted{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[13]
+		mi := &file_mafia_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -965,7 +1082,7 @@ func (x *GameInterrupted) String() string {
 func (*GameInterrupted) ProtoMessage() {}
 
 func (x *GameInterrupted) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[13]
+	mi := &file_mafia_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -978,7 +1095,7 @@ func (x *GameInterrupted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameInterrupted.ProtoReflect.Descriptor instead.
 func (*GameInterrupted) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{13}
+	return file_mafia_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GameInterrupted) GetReason() string {
@@ -999,7 +1116,7 @@ type Ask struct {
 func (x *Ask) Reset() {
 	*x = Ask{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_mafia_proto_msgTypes[14]
+		mi := &file_mafia_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1012,7 +1129,7 @@ func (x *Ask) String() string {
 func (*Ask) ProtoMessage() {}
 
 func (x *Ask) ProtoReflect() protoreflect.Message {
-	mi := &file_mafia_proto_msgTypes[14]
+	mi := &file_mafia_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1025,7 +1142,7 @@ func (x *Ask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ask.ProtoReflect.Descriptor instead.
 func (*Ask) Descriptor() ([]byte, []int) {
-	return file_mafia_proto_rawDescGZIP(), []int{14}
+	return file_mafia_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Ask) GetDefault() string {
@@ -1039,9 +1156,12 @@ var File_mafia_proto protoreflect.FileDescriptor
 
 var file_mafia_proto_rawDesc = []byte{
 	0x0a, 0x0b, 0x6d, 0x61, 0x66, 0x69, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x07, 0x72,
-	0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x22, 0x13, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x57, 0x61, 0x69,
-	0x74, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x2e, 0x0a, 0x12, 0x47,
-	0x65, 0x74, 0x57, 0x61, 0x69, 0x74, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x22, 0x26, 0x0a, 0x10, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68,
+	0x44, 0x61, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61,
+	0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x21,
+	0x0a, 0x0b, 0x4a, 0x6f, 0x69, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a,
+	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d,
+	0x65, 0x22, 0x28, 0x0a, 0x0c, 0x4a, 0x6f, 0x69, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
 	0x65, 0x12, 0x18, 0x0a, 0x07, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x18, 0x01, 0x20, 0x03,
 	0x28, 0x09, 0x52, 0x07, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x22, 0x39, 0x0a, 0x0b, 0x47,
 	0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61,
@@ -1067,7 +1187,7 @@ var file_mafia_proto_rawDesc = []byte{
 	0x6e, 0x42, 0x07, 0x0a, 0x05, 0x5f, 0x72, 0x6f, 0x6c, 0x65, 0x22, 0x25, 0x0a, 0x0f, 0x52, 0x65,
 	0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a,
 	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d,
-	0x65, 0x22, 0x87, 0x05, 0x0a, 0x05, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x12, 0x30, 0x0a, 0x07, 0x63,
+	0x65, 0x22, 0xce, 0x05, 0x0a, 0x05, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x12, 0x30, 0x0a, 0x07, 0x63,
 	0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x72,
 	0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x50, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x45, 0x76, 0x65,
 	0x6e, 0x74, 0x48, 0x00, 0x52, 0x07, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x12, 0x36, 0x0a,
@@ -1107,60 +1227,69 @@ var file_mafia_proto_rawDesc = []byte{
 	0x6e, 0x69, 0x73, 0x68, 0x65, 0x64, 0x18, 0x0c, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x72,
 	0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x46, 0x69, 0x6e, 0x69, 0x73,
 	0x68, 0x65, 0x64, 0x48, 0x00, 0x52, 0x0c, 0x67, 0x61, 0x6d, 0x65, 0x46, 0x69, 0x6e, 0x69, 0x73,
-	0x68, 0x65, 0x64, 0x42, 0x06, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x3d, 0x0a, 0x0c, 0x47,
-	0x61, 0x6d, 0x65, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x65, 0x64, 0x12, 0x2d, 0x0a, 0x08, 0x77,
-	0x69, 0x6e, 0x5f, 0x72, 0x6f, 0x6c, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x12, 0x2e,
-	0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x52, 0x6f, 0x6c,
-	0x65, 0x52, 0x07, 0x77, 0x69, 0x6e, 0x52, 0x6f, 0x6c, 0x65, 0x22, 0x4a, 0x0a, 0x0a, 0x44, 0x61,
-	0x79, 0x53, 0x74, 0x61, 0x72, 0x74, 0x65, 0x64, 0x12, 0x17, 0x0a, 0x07, 0x64, 0x61, 0x79, 0x5f,
-	0x6e, 0x75, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x06, 0x64, 0x61, 0x79, 0x4e, 0x75,
-	0x6d, 0x12, 0x23, 0x0a, 0x0d, 0x6b, 0x69, 0x6c, 0x6c, 0x65, 0x64, 0x5f, 0x76, 0x69, 0x63, 0x74,
-	0x69, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0c, 0x6b, 0x69, 0x6c, 0x6c, 0x65, 0x64,
-	0x56, 0x69, 0x63, 0x74, 0x69, 0x6d, 0x22, 0x2b, 0x0a, 0x0c, 0x4e, 0x69, 0x67, 0x68, 0x74, 0x53,
-	0x74, 0x61, 0x72, 0x74, 0x65, 0x64, 0x12, 0x1b, 0x0a, 0x09, 0x6e, 0x69, 0x67, 0x68, 0x74, 0x5f,
-	0x6e, 0x75, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x08, 0x6e, 0x69, 0x67, 0x68, 0x74,
-	0x4e, 0x75, 0x6d, 0x22, 0x0d, 0x0a, 0x0b, 0x50, 0x69, 0x6e, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x22, 0x2d, 0x0a, 0x0b, 0x50, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x45, 0x76, 0x65, 0x6e,
-	0x74, 0x12, 0x1e, 0x0a, 0x0a, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x4e, 0x61, 0x6d,
-	0x65, 0x22, 0x4f, 0x0a, 0x0b, 0x47, 0x61, 0x6d, 0x65, 0x53, 0x74, 0x61, 0x72, 0x74, 0x65, 0x64,
-	0x12, 0x18, 0x0a, 0x07, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
-	0x09, 0x52, 0x07, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73, 0x12, 0x26, 0x0a, 0x04, 0x72, 0x6f,
-	0x6c, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x12, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72,
-	0x73, 0x65, 0x2e, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x52, 0x6f, 0x6c, 0x65, 0x52, 0x04, 0x72, 0x6f,
-	0x6c, 0x65, 0x22, 0x29, 0x0a, 0x0f, 0x47, 0x61, 0x6d, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x72,
-	0x75, 0x70, 0x74, 0x65, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x22, 0x1f, 0x0a,
-	0x03, 0x41, 0x73, 0x6b, 0x12, 0x18, 0x0a, 0x07, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x2a, 0x3e,
-	0x0a, 0x09, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x52, 0x6f, 0x6c, 0x65, 0x12, 0x0b, 0x0a, 0x07, 0x55,
-	0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05, 0x4d, 0x41, 0x46, 0x49,
-	0x41, 0x10, 0x01, 0x12, 0x0c, 0x0a, 0x08, 0x43, 0x49, 0x56, 0x49, 0x4c, 0x49, 0x41, 0x4e, 0x10,
-	0x02, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x48, 0x45, 0x52, 0x49, 0x46, 0x46, 0x10, 0x03, 0x2a, 0x21,
-	0x0a, 0x0a, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x09, 0x0a, 0x05,
-	0x41, 0x4c, 0x49, 0x56, 0x45, 0x10, 0x00, 0x12, 0x08, 0x0a, 0x04, 0x44, 0x45, 0x41, 0x44, 0x10,
-	0x01, 0x32, 0xf1, 0x02, 0x0a, 0x05, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x12, 0x38, 0x0a, 0x08, 0x52,
-	0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x12, 0x18, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73,
-	0x65, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x0e, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x45, 0x76, 0x65, 0x6e,
-	0x74, 0x22, 0x00, 0x30, 0x01, 0x12, 0x4b, 0x0a, 0x0e, 0x47, 0x65, 0x74, 0x57, 0x61, 0x69, 0x74,
-	0x69, 0x6e, 0x67, 0x52, 0x6f, 0x6f, 0x6d, 0x12, 0x1a, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73,
-	0x65, 0x2e, 0x47, 0x65, 0x74, 0x57, 0x61, 0x69, 0x74, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75,
-	0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x65,
-	0x74, 0x57, 0x61, 0x69, 0x74, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x00, 0x12, 0x35, 0x0a, 0x04, 0x56, 0x6f, 0x74, 0x65, 0x12, 0x14, 0x2e, 0x72, 0x65, 0x76,
-	0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x15, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x35, 0x0a, 0x04, 0x4b, 0x69, 0x6c,
-	0x6c, 0x12, 0x14, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73,
-	0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00,
-	0x12, 0x37, 0x0a, 0x06, 0x53, 0x65, 0x61, 0x72, 0x63, 0x68, 0x12, 0x14, 0x2e, 0x72, 0x65, 0x76,
-	0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x15, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x3a, 0x0a, 0x09, 0x46, 0x69, 0x6e,
-	0x69, 0x73, 0x68, 0x44, 0x61, 0x79, 0x12, 0x14, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65,
-	0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72,
+	0x68, 0x65, 0x64, 0x12, 0x45, 0x0a, 0x10, 0x76, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x5f, 0x63, 0x6f,
+	0x6d, 0x70, 0x6c, 0x65, 0x74, 0x65, 0x64, 0x18, 0x0d, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x18, 0x2e,
+	0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x43, 0x6f,
+	0x6d, 0x70, 0x6c, 0x65, 0x74, 0x65, 0x64, 0x48, 0x00, 0x52, 0x0f, 0x76, 0x6f, 0x74, 0x69, 0x6e,
+	0x67, 0x43, 0x6f, 0x6d, 0x70, 0x6c, 0x65, 0x74, 0x65, 0x64, 0x42, 0x06, 0x0a, 0x04, 0x64, 0x61,
+	0x74, 0x61, 0x22, 0x4d, 0x0a, 0x0f, 0x56, 0x6f, 0x74, 0x69, 0x6e, 0x67, 0x43, 0x6f, 0x6d, 0x70,
+	0x6c, 0x65, 0x74, 0x65, 0x64, 0x12, 0x28, 0x0a, 0x0d, 0x6b, 0x69, 0x6c, 0x6c, 0x65, 0x64, 0x5f,
+	0x76, 0x69, 0x63, 0x74, 0x69, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x0c,
+	0x6b, 0x69, 0x6c, 0x6c, 0x65, 0x64, 0x56, 0x69, 0x63, 0x74, 0x69, 0x6d, 0x88, 0x01, 0x01, 0x42,
+	0x10, 0x0a, 0x0e, 0x5f, 0x6b, 0x69, 0x6c, 0x6c, 0x65, 0x64, 0x5f, 0x76, 0x69, 0x63, 0x74, 0x69,
+	0x6d, 0x22, 0x3d, 0x0a, 0x0c, 0x47, 0x61, 0x6d, 0x65, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x65,
+	0x64, 0x12, 0x2d, 0x0a, 0x08, 0x77, 0x69, 0x6e, 0x5f, 0x72, 0x6f, 0x6c, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0e, 0x32, 0x12, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x4d, 0x61,
+	0x66, 0x69, 0x61, 0x52, 0x6f, 0x6c, 0x65, 0x52, 0x07, 0x77, 0x69, 0x6e, 0x52, 0x6f, 0x6c, 0x65,
+	0x22, 0x4a, 0x0a, 0x0a, 0x44, 0x61, 0x79, 0x53, 0x74, 0x61, 0x72, 0x74, 0x65, 0x64, 0x12, 0x17,
+	0x0a, 0x07, 0x64, 0x61, 0x79, 0x5f, 0x6e, 0x75, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52,
+	0x06, 0x64, 0x61, 0x79, 0x4e, 0x75, 0x6d, 0x12, 0x23, 0x0a, 0x0d, 0x6b, 0x69, 0x6c, 0x6c, 0x65,
+	0x64, 0x5f, 0x76, 0x69, 0x63, 0x74, 0x69, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0c,
+	0x6b, 0x69, 0x6c, 0x6c, 0x65, 0x64, 0x56, 0x69, 0x63, 0x74, 0x69, 0x6d, 0x22, 0x2b, 0x0a, 0x0c,
+	0x4e, 0x69, 0x67, 0x68, 0x74, 0x53, 0x74, 0x61, 0x72, 0x74, 0x65, 0x64, 0x12, 0x1b, 0x0a, 0x09,
+	0x6e, 0x69, 0x67, 0x68, 0x74, 0x5f, 0x6e, 0x75, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52,
+	0x08, 0x6e, 0x69, 0x67, 0x68, 0x74, 0x4e, 0x75, 0x6d, 0x22, 0x0d, 0x0a, 0x0b, 0x50, 0x69, 0x6e,
+	0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0x2d, 0x0a, 0x0b, 0x50, 0x65, 0x72, 0x73,
+	0x6f, 0x6e, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x12, 0x1e, 0x0a, 0x0a, 0x70, 0x65, 0x72, 0x73, 0x6f,
+	0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x70, 0x65, 0x72,
+	0x73, 0x6f, 0x6e, 0x4e, 0x61, 0x6d, 0x65, 0x22, 0x4f, 0x0a, 0x0b, 0x47, 0x61, 0x6d, 0x65, 0x53,
+	0x74, 0x61, 0x72, 0x74, 0x65, 0x64, 0x12, 0x18, 0x0a, 0x07, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72,
+	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x07, 0x70, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x73,
+	0x12, 0x26, 0x0a, 0x04, 0x72, 0x6f, 0x6c, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x12,
+	0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x52, 0x6f,
+	0x6c, 0x65, 0x52, 0x04, 0x72, 0x6f, 0x6c, 0x65, 0x22, 0x29, 0x0a, 0x0f, 0x47, 0x61, 0x6d, 0x65,
+	0x49, 0x6e, 0x74, 0x65, 0x72, 0x72, 0x75, 0x70, 0x74, 0x65, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x72,
+	0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x61,
+	0x73, 0x6f, 0x6e, 0x22, 0x1f, 0x0a, 0x03, 0x41, 0x73, 0x6b, 0x12, 0x18, 0x0a, 0x07, 0x64, 0x65,
+	0x66, 0x61, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x64, 0x65, 0x66,
+	0x61, 0x75, 0x6c, 0x74, 0x2a, 0x3e, 0x0a, 0x09, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x52, 0x6f, 0x6c,
+	0x65, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x09,
+	0x0a, 0x05, 0x4d, 0x41, 0x46, 0x49, 0x41, 0x10, 0x01, 0x12, 0x0c, 0x0a, 0x08, 0x43, 0x49, 0x56,
+	0x49, 0x4c, 0x49, 0x41, 0x4e, 0x10, 0x02, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x48, 0x45, 0x52, 0x49,
+	0x46, 0x46, 0x10, 0x03, 0x2a, 0x21, 0x0a, 0x0a, 0x4d, 0x61, 0x66, 0x69, 0x61, 0x53, 0x74, 0x61,
+	0x74, 0x65, 0x12, 0x09, 0x0a, 0x05, 0x41, 0x4c, 0x49, 0x56, 0x45, 0x10, 0x00, 0x12, 0x08, 0x0a,
+	0x04, 0x44, 0x45, 0x41, 0x44, 0x10, 0x01, 0x32, 0xeb, 0x02, 0x0a, 0x05, 0x4d, 0x61, 0x66, 0x69,
+	0x61, 0x12, 0x38, 0x0a, 0x08, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x12, 0x18, 0x2e,
+	0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0e, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73,
+	0x65, 0x2e, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x22, 0x00, 0x30, 0x01, 0x12, 0x40, 0x0a, 0x0f, 0x4a,
+	0x6f, 0x69, 0x6e, 0x57, 0x61, 0x69, 0x74, 0x69, 0x6e, 0x67, 0x52, 0x6f, 0x6f, 0x6d, 0x12, 0x14,
+	0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x4a, 0x6f, 0x69, 0x6e, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x4a,
+	0x6f, 0x69, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x35, 0x0a,
+	0x04, 0x56, 0x6f, 0x74, 0x65, 0x12, 0x14, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e,
+	0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x65,
+	0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x00, 0x12, 0x35, 0x0a, 0x04, 0x4b, 0x69, 0x6c, 0x6c, 0x12, 0x14, 0x2e, 0x72,
+	0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d,
+	0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x37, 0x0a, 0x06, 0x53,
+	0x65, 0x61, 0x72, 0x63, 0x68, 0x12, 0x14, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e,
+	0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72, 0x65,
+	0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x00, 0x12, 0x3f, 0x0a, 0x09, 0x46, 0x69, 0x6e, 0x69, 0x73, 0x68, 0x44, 0x61,
+	0x79, 0x12, 0x19, 0x2e, 0x72, 0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x46, 0x69, 0x6e, 0x69,
+	0x73, 0x68, 0x44, 0x61, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e, 0x72,
 	0x65, 0x76, 0x65, 0x72, 0x73, 0x65, 0x2e, 0x47, 0x61, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f,
 	0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x1d, 0x5a, 0x1b, 0x73, 0x6f, 0x61, 0x5f, 0x70, 0x72, 0x6f,
 	0x6a, 0x65, 0x63, 0x74, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x6d,
@@ -1180,59 +1309,62 @@ func file_mafia_proto_rawDescGZIP() []byte {
 }
 
 var file_mafia_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_mafia_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_mafia_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_mafia_proto_goTypes = []interface{}{
-	(MafiaRole)(0),             // 0: reverse.MafiaRole
-	(MafiaState)(0),            // 1: reverse.MafiaState
-	(*GetWaitingRequest)(nil),  // 2: reverse.GetWaitingRequest
-	(*GetWaitingResponse)(nil), // 3: reverse.GetWaitingResponse
-	(*GameRequest)(nil),        // 4: reverse.GameRequest
-	(*SearchResponse)(nil),     // 5: reverse.SearchResponse
-	(*GameResponse)(nil),       // 6: reverse.GameResponse
-	(*RegisterRequest)(nil),    // 7: reverse.RegisterRequest
-	(*Event)(nil),              // 8: reverse.Event
-	(*GameFinished)(nil),       // 9: reverse.GameFinished
-	(*DayStarted)(nil),         // 10: reverse.DayStarted
-	(*NightStarted)(nil),       // 11: reverse.NightStarted
-	(*PingMessage)(nil),        // 12: reverse.PingMessage
-	(*PersonEvent)(nil),        // 13: reverse.PersonEvent
-	(*GameStarted)(nil),        // 14: reverse.GameStarted
-	(*GameInterrupted)(nil),    // 15: reverse.GameInterrupted
-	(*Ask)(nil),                // 16: reverse.Ask
+	(MafiaRole)(0),           // 0: reverse.MafiaRole
+	(MafiaState)(0),          // 1: reverse.MafiaState
+	(*FinishDayRequest)(nil), // 2: reverse.FinishDayRequest
+	(*JoinRequest)(nil),      // 3: reverse.JoinRequest
+	(*JoinResponse)(nil),     // 4: reverse.JoinResponse
+	(*GameRequest)(nil),      // 5: reverse.GameRequest
+	(*SearchResponse)(nil),   // 6: reverse.SearchResponse
+	(*GameResponse)(nil),     // 7: reverse.GameResponse
+	(*RegisterRequest)(nil),  // 8: reverse.RegisterRequest
+	(*Event)(nil),            // 9: reverse.Event
+	(*VotingCompleted)(nil),  // 10: reverse.VotingCompleted
+	(*GameFinished)(nil),     // 11: reverse.GameFinished
+	(*DayStarted)(nil),       // 12: reverse.DayStarted
+	(*NightStarted)(nil),     // 13: reverse.NightStarted
+	(*PingMessage)(nil),      // 14: reverse.PingMessage
+	(*PersonEvent)(nil),      // 15: reverse.PersonEvent
+	(*GameStarted)(nil),      // 16: reverse.GameStarted
+	(*GameInterrupted)(nil),  // 17: reverse.GameInterrupted
+	(*Ask)(nil),              // 18: reverse.Ask
 }
 var file_mafia_proto_depIdxs = []int32{
 	0,  // 0: reverse.SearchResponse.role:type_name -> reverse.MafiaRole
 	0,  // 1: reverse.GameResponse.role:type_name -> reverse.MafiaRole
-	13, // 2: reverse.Event.connect:type_name -> reverse.PersonEvent
-	13, // 3: reverse.Event.disconnect:type_name -> reverse.PersonEvent
-	14, // 4: reverse.Event.game_started:type_name -> reverse.GameStarted
-	15, // 5: reverse.Event.game_interrupted:type_name -> reverse.GameInterrupted
-	12, // 6: reverse.Event.ping:type_name -> reverse.PingMessage
-	16, // 7: reverse.Event.ask_search:type_name -> reverse.Ask
-	16, // 8: reverse.Event.ask_vote:type_name -> reverse.Ask
-	16, // 9: reverse.Event.ask_kill:type_name -> reverse.Ask
-	10, // 10: reverse.Event.day_started:type_name -> reverse.DayStarted
-	11, // 11: reverse.Event.night_started:type_name -> reverse.NightStarted
-	9,  // 12: reverse.Event.game_finished:type_name -> reverse.GameFinished
-	0,  // 13: reverse.GameFinished.win_role:type_name -> reverse.MafiaRole
-	0,  // 14: reverse.GameStarted.role:type_name -> reverse.MafiaRole
-	7,  // 15: reverse.Mafia.Register:input_type -> reverse.RegisterRequest
-	2,  // 16: reverse.Mafia.GetWaitingRoom:input_type -> reverse.GetWaitingRequest
-	4,  // 17: reverse.Mafia.Vote:input_type -> reverse.GameRequest
-	4,  // 18: reverse.Mafia.Kill:input_type -> reverse.GameRequest
-	4,  // 19: reverse.Mafia.Search:input_type -> reverse.GameRequest
-	4,  // 20: reverse.Mafia.FinishDay:input_type -> reverse.GameRequest
-	8,  // 21: reverse.Mafia.Register:output_type -> reverse.Event
-	3,  // 22: reverse.Mafia.GetWaitingRoom:output_type -> reverse.GetWaitingResponse
-	6,  // 23: reverse.Mafia.Vote:output_type -> reverse.GameResponse
-	6,  // 24: reverse.Mafia.Kill:output_type -> reverse.GameResponse
-	6,  // 25: reverse.Mafia.Search:output_type -> reverse.GameResponse
-	6,  // 26: reverse.Mafia.FinishDay:output_type -> reverse.GameResponse
-	21, // [21:27] is the sub-list for method output_type
-	15, // [15:21] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	15, // 2: reverse.Event.connect:type_name -> reverse.PersonEvent
+	15, // 3: reverse.Event.disconnect:type_name -> reverse.PersonEvent
+	16, // 4: reverse.Event.game_started:type_name -> reverse.GameStarted
+	17, // 5: reverse.Event.game_interrupted:type_name -> reverse.GameInterrupted
+	14, // 6: reverse.Event.ping:type_name -> reverse.PingMessage
+	18, // 7: reverse.Event.ask_search:type_name -> reverse.Ask
+	18, // 8: reverse.Event.ask_vote:type_name -> reverse.Ask
+	18, // 9: reverse.Event.ask_kill:type_name -> reverse.Ask
+	12, // 10: reverse.Event.day_started:type_name -> reverse.DayStarted
+	13, // 11: reverse.Event.night_started:type_name -> reverse.NightStarted
+	11, // 12: reverse.Event.game_finished:type_name -> reverse.GameFinished
+	10, // 13: reverse.Event.voting_completed:type_name -> reverse.VotingCompleted
+	0,  // 14: reverse.GameFinished.win_role:type_name -> reverse.MafiaRole
+	0,  // 15: reverse.GameStarted.role:type_name -> reverse.MafiaRole
+	8,  // 16: reverse.Mafia.Register:input_type -> reverse.RegisterRequest
+	3,  // 17: reverse.Mafia.JoinWaitingRoom:input_type -> reverse.JoinRequest
+	5,  // 18: reverse.Mafia.Vote:input_type -> reverse.GameRequest
+	5,  // 19: reverse.Mafia.Kill:input_type -> reverse.GameRequest
+	5,  // 20: reverse.Mafia.Search:input_type -> reverse.GameRequest
+	2,  // 21: reverse.Mafia.FinishDay:input_type -> reverse.FinishDayRequest
+	9,  // 22: reverse.Mafia.Register:output_type -> reverse.Event
+	4,  // 23: reverse.Mafia.JoinWaitingRoom:output_type -> reverse.JoinResponse
+	7,  // 24: reverse.Mafia.Vote:output_type -> reverse.GameResponse
+	7,  // 25: reverse.Mafia.Kill:output_type -> reverse.GameResponse
+	7,  // 26: reverse.Mafia.Search:output_type -> reverse.GameResponse
+	7,  // 27: reverse.Mafia.FinishDay:output_type -> reverse.GameResponse
+	22, // [22:28] is the sub-list for method output_type
+	16, // [16:22] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_mafia_proto_init() }
@@ -1242,7 +1374,7 @@ func file_mafia_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_mafia_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetWaitingRequest); i {
+			switch v := v.(*FinishDayRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1254,7 +1386,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetWaitingResponse); i {
+			switch v := v.(*JoinRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1266,7 +1398,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GameRequest); i {
+			switch v := v.(*JoinResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1278,7 +1410,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SearchResponse); i {
+			switch v := v.(*GameRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1290,7 +1422,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GameResponse); i {
+			switch v := v.(*SearchResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1302,7 +1434,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RegisterRequest); i {
+			switch v := v.(*GameResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1314,7 +1446,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Event); i {
+			switch v := v.(*RegisterRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1326,7 +1458,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GameFinished); i {
+			switch v := v.(*Event); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1338,7 +1470,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DayStarted); i {
+			switch v := v.(*VotingCompleted); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1350,7 +1482,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*NightStarted); i {
+			switch v := v.(*GameFinished); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1362,7 +1494,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PingMessage); i {
+			switch v := v.(*DayStarted); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1374,7 +1506,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PersonEvent); i {
+			switch v := v.(*NightStarted); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1386,7 +1518,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GameStarted); i {
+			switch v := v.(*PingMessage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1398,7 +1530,7 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GameInterrupted); i {
+			switch v := v.(*PersonEvent); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1410,6 +1542,30 @@ func file_mafia_proto_init() {
 			}
 		}
 		file_mafia_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GameStarted); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_mafia_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GameInterrupted); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_mafia_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Ask); i {
 			case 0:
 				return &v.state
@@ -1422,9 +1578,9 @@ func file_mafia_proto_init() {
 			}
 		}
 	}
-	file_mafia_proto_msgTypes[3].OneofWrappers = []interface{}{}
 	file_mafia_proto_msgTypes[4].OneofWrappers = []interface{}{}
-	file_mafia_proto_msgTypes[6].OneofWrappers = []interface{}{
+	file_mafia_proto_msgTypes[5].OneofWrappers = []interface{}{}
+	file_mafia_proto_msgTypes[7].OneofWrappers = []interface{}{
 		(*Event_Connect)(nil),
 		(*Event_Disconnect)(nil),
 		(*Event_GameStarted)(nil),
@@ -1437,14 +1593,16 @@ func file_mafia_proto_init() {
 		(*Event_DayStarted)(nil),
 		(*Event_NightStarted)(nil),
 		(*Event_GameFinished)(nil),
+		(*Event_VotingCompleted)(nil),
 	}
+	file_mafia_proto_msgTypes[8].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_mafia_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

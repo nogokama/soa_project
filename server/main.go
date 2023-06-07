@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	mapset "github.com/deckarep/golang-set/v2"
 )
@@ -39,6 +37,7 @@ type gameSession struct {
 
 	dayCounter int
 	lastKilled string
+	voting     map[string]int
 }
 
 func NewGameSession(names []string) *gameSession {
@@ -74,6 +73,7 @@ func NewGameSession(names []string) *gameSession {
 		expectFinishFrom: mapset.NewSet[string](),
 
 		dayCounter: 1,
+		voting:     make(map[string]int),
 	}
 }
 
@@ -85,16 +85,17 @@ type server struct {
 	games map[string]int
 
 	sessions      []*gameSession
-	newGameBuffer []string
+	newGameBuffer mapset.Set[string]
 	mu            sync.Mutex
 }
 
 func NewServer() *server {
 	return &server{
-		streams:  make(map[string]chan *mafia.Event),
-		mu:       sync.Mutex{},
-		sessions: []*gameSession{},
-		games:    make(map[string]int),
+		streams:       make(map[string]chan *mafia.Event),
+		mu:            sync.Mutex{},
+		sessions:      []*gameSession{},
+		games:         make(map[string]int),
+		newGameBuffer: mapset.NewSet[string](),
 	}
 }
 
@@ -113,7 +114,6 @@ func (s *server) pingClients() {
 }
 
 func (s *server) Register(request *mafia.RegisterRequest, newStream mafia.Mafia_RegisterServer) error {
-
 	s.mu.Lock()
 
 	clientName := request.GetName()
@@ -135,25 +135,23 @@ func (s *server) Register(request *mafia.RegisterRequest, newStream mafia.Mafia_
 
 	channel := make(chan *mafia.Event, 10000)
 	channel <- &mafia.Event{Data: &mafia.Event_HelloMessage{HelloMessage: fmt.Sprintf("HI, %s!", clientName)}}
+	s.streams[clientName] = channel
 
-	for name, ch := range s.streams {
-		ch <- &mafia.Event{
+	for _, waiter := range s.newGameBuffer.ToSlice() {
+		s.streams[waiter] <- &mafia.Event{
 			Data: &mafia.Event_Connect{Connect: &mafia.PersonEvent{
 				PersonName: clientName,
 			}},
 		}
 
-		if slices.Contains(s.newGameBuffer, name) {
-			channel <- &mafia.Event{Data: &mafia.Event_Connect{Connect: &mafia.PersonEvent{PersonName: name}}}
-		}
+		channel <- &mafia.Event{Data: &mafia.Event_Connect{Connect: &mafia.PersonEvent{PersonName: waiter}}}
 	}
 
-	s.streams[clientName] = channel
-	s.newGameBuffer = append(s.newGameBuffer, clientName)
+	s.newGameBuffer.Add(clientName)
 
 	if s.shouldStartNewGame() {
-		s.startNewGame(s.newGameBuffer)
-		s.newGameBuffer = []string{}
+		s.startNewGame(s.newGameBuffer.ToSlice())
+		s.newGameBuffer = mapset.NewSet[string]()
 	}
 
 	s.mu.Unlock()
@@ -172,7 +170,15 @@ func (s *server) Vote(ctx context.Context, req *mafia.GameRequest) (*mafia.GameR
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return nil, status.Errorf(codes.Unimplemented, "method Vote not implemented")
+	session, resp, err := s.actionPrepare(req)
+	if err != nil {
+		return resp, nil
+	}
+
+	session.expectVoteFrom.Remove(req.GetName())
+	session.voting[req.GetVictim()]++
+
+	return &mafia.GameResponse{Success: true}, nil
 }
 
 func (s *server) Kill(ctx context.Context, req *mafia.GameRequest) (*mafia.GameResponse, error) {
@@ -186,7 +192,6 @@ func (s *server) Kill(ctx context.Context, req *mafia.GameRequest) (*mafia.GameR
 
 	session.expectKillFrom.Remove(req.GetName())
 	session.lastKilled = req.GetVictim()
-	session.states[req.GetVictim()] = mafia.MafiaState_DEAD
 
 	s.mayBeNextDay(session)
 
@@ -211,6 +216,57 @@ func (s *server) Search(ctx context.Context, req *mafia.GameRequest) (*mafia.Gam
 	return &mafia.GameResponse{Success: true, Role: &role}, nil
 }
 
+func (s *server) FinishDay(ctx context.Context, req *mafia.FinishDayRequest) (*mafia.GameResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, err := s.getSessionByPlayer(req.GetName())
+	if err != nil {
+		reason := err.Error()
+		return &mafia.GameResponse{Success: false, Reason: &reason}, nil
+	}
+
+	if session.expectVoteFrom.Contains(req.GetName()) {
+		reason := "You are expected to /vote before finish day"
+		return &mafia.GameResponse{Success: false, Reason: &reason}, nil
+	}
+
+	session.expectFinishFrom.Remove(req.GetName())
+
+	s.mayBeNextNight(session)
+
+	return &mafia.GameResponse{Success: true}, nil
+}
+
+func (s *server) JoinWaitingRoom(ctx context.Context, req *mafia.JoinRequest) (*mafia.JoinResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, ok := s.streams[req.GetName()]
+	if !ok {
+		return nil, requestError
+	}
+
+	delete(s.games, req.GetName())
+
+	for _, waiter := range s.newGameBuffer.ToSlice() {
+		s.streams[waiter] <- &mafia.Event{
+			Data: &mafia.Event_Connect{Connect: &mafia.PersonEvent{
+				PersonName: req.GetName(),
+			}},
+		}
+	}
+
+	s.newGameBuffer.Add(req.GetName())
+
+	if s.shouldStartNewGame() {
+		s.startNewGame(s.newGameBuffer.ToSlice())
+		s.newGameBuffer = mapset.NewSet[string]()
+	}
+
+	return &mafia.JoinResponse{Players: s.newGameBuffer.ToSlice()}, nil
+}
+
 func (s *server) actionPrepare(req *mafia.GameRequest) (*gameSession, *mafia.GameResponse, error) {
 	session, err := s.getSessionByPlayer(req.GetName())
 	if err != nil {
@@ -233,6 +289,55 @@ func (s *server) actionPrepare(req *mafia.GameRequest) (*gameSession, *mafia.Gam
 }
 
 func (s *server) mayBeNextNight(session *gameSession) {
+	if len(session.expectFinishFrom.ToSlice()) > 0 {
+		return
+	}
+
+	session.dayCounter++
+
+	greater := false
+	victim := ""
+	maxVotes := 0
+
+	for name, curVotes := range session.voting {
+		if curVotes > maxVotes {
+			greater = true
+			victim = name
+			maxVotes = curVotes
+		} else if curVotes == maxVotes {
+			greater = false
+		}
+	}
+
+	msg := &mafia.VotingCompleted{}
+	if greater {
+		msg.KilledVictim = &victim
+		session.states[victim] = mafia.MafiaState_DEAD
+	}
+
+	for name := range session.players {
+		s.streams[name] <- &mafia.Event{Data: &mafia.Event_VotingCompleted{VotingCompleted: msg}}
+	}
+
+	if s.mayBeEndGame(session) {
+		return
+	}
+
+	for name, role := range session.players {
+		s.streams[name] <- &mafia.Event{Data: &mafia.Event_NightStarted{NightStarted: &mafia.NightStarted{
+			NightNum: int32(session.dayCounter),
+		}}}
+
+		randomVictim := s.getRandomAliveVictim(session)
+		switch role {
+		case mafia.MafiaRole_MAFIA:
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskKill{AskKill: &mafia.Ask{Default: randomVictim}}}
+			session.expectKillFrom.Add(name)
+		case mafia.MafiaRole_SHERIFF:
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskSearch{AskSearch: &mafia.Ask{Default: randomVictim}}}
+			session.expectSearch = true
+		}
+	}
 
 }
 
@@ -241,12 +346,20 @@ func (s *server) mayBeNextDay(session *gameSession) {
 		return
 	}
 
-	for name, state := range session.states {
+	session.states[session.lastKilled] = mafia.MafiaState_DEAD
+
+	for name := range session.states {
 		s.streams[name] <- &mafia.Event{Data: &mafia.Event_DayStarted{DayStarted: &mafia.DayStarted{
 			DayNum:       int32(session.dayCounter),
 			KilledVictim: session.lastKilled,
 		}}}
+	}
 
+	if s.mayBeEndGame(session) {
+		return
+	}
+
+	for name, state := range session.states {
 		if state == mafia.MafiaState_ALIVE {
 			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskVote{AskVote: &mafia.Ask{
 				Default: s.getRandomAliveVictim(session),
@@ -258,10 +371,51 @@ func (s *server) mayBeNextDay(session *gameSession) {
 	}
 
 	session.lastKilled = ""
+	session.voting = make(map[string]int)
 }
 
-func (s *server) mayBeEndGame(session *gameSession) {
+func (s *server) mayBeEndGame(session *gameSession) bool {
+	mafiasAlive := 0
+	civilAlive := 0
 
+	for name, state := range session.states {
+		if state == mafia.MafiaState_ALIVE {
+			switch session.players[name] {
+			case mafia.MafiaRole_MAFIA:
+				mafiasAlive++
+			default:
+				civilAlive++
+			}
+		}
+	}
+
+	if mafiasAlive == 0 {
+		for name := range session.players {
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_GameFinished{GameFinished: &mafia.GameFinished{
+				WinRole: mafia.MafiaRole_CIVILIAN,
+			}}}
+		}
+
+		s.finishGameSession(session)
+		return true
+	}
+
+	if mafiasAlive == civilAlive {
+		for name := range session.players {
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_GameFinished{GameFinished: &mafia.GameFinished{
+				WinRole: mafia.MafiaRole_MAFIA,
+			}}}
+		}
+
+		s.finishGameSession(session)
+		return true
+	}
+
+	return false
+}
+
+func (s *server) finishGameSession(session *gameSession) {
+	// TODO
 }
 
 func (s *server) getSortedNames(session *gameSession) []string {
@@ -303,16 +457,16 @@ func (s *server) getSessionByPlayer(name string) (*gameSession, error) {
 
 func (s *server) shouldStartNewGame() bool {
 	actualWaiting := []string{}
-	for _, name := range s.newGameBuffer {
+	for _, name := range s.newGameBuffer.ToSlice() {
 		_, ok := s.streams[name]
 		if ok {
 			actualWaiting = append(actualWaiting, name)
 		}
 	}
 
-	s.newGameBuffer = actualWaiting
+	s.newGameBuffer = mapset.NewSet(actualWaiting...)
 
-	return len(s.newGameBuffer) == startGameThreshold
+	return len(actualWaiting) == startGameThreshold
 }
 
 func (s *server) startNewGame(n []string) {
@@ -336,11 +490,12 @@ func (s *server) startNewGame(n []string) {
 			NightNum: int32(session.dayCounter),
 		}}}
 
+		randomVictim := s.getRandomAliveVictim(session)
 		switch session.players[name] {
 		case mafia.MafiaRole_MAFIA:
-			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskKill{}}
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskKill{AskKill: &mafia.Ask{Default: randomVictim}}}
 		case mafia.MafiaRole_SHERIFF:
-			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskSearch{}}
+			s.streams[name] <- &mafia.Event{Data: &mafia.Event_AskSearch{AskSearch: &mafia.Ask{Default: randomVictim}}}
 		}
 	}
 }
@@ -361,7 +516,7 @@ func (s *server) ProcessDisconnect(name string) {
 }
 
 func main() {
-	lis, err := net.Listen("tcp", ":9000")
+	lis, err := net.Listen("tcp", ":10000")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

@@ -17,16 +17,22 @@ enum MafiaState {
 
 service Mafia {
  rpc Register(RegisterRequest) returns (stream Event) {}
- rpc GetWaitingRoom(GetWaitingRequest) returns (GetWaitingResponse) {}
+ rpc JoinWaitingRoom(JoinRequest) returns (JoinResponse) {}
  rpc Vote(GameRequest) returns (GameResponse) {}
  rpc Kill(GameRequest) returns (GameResponse) {}
  rpc Search(GameRequest) returns (GameResponse) {}
- rpc FinishDay(GameRequest) returns (GameResponse) {}
+ rpc FinishDay(FinishDayRequest) returns (GameResponse) {}
 }
 
-message GetWaitingRequest {}
+message FinishDayRequest {
+    string name = 1;
+}
 
-message GetWaitingResponse {
+message JoinRequest {
+    string name = 1;
+}
+
+message JoinResponse {
     repeated string players = 1;
 }
 
@@ -65,7 +71,12 @@ message Event {
         DayStarted day_started = 10;
         NightStarted night_started = 11;
         GameFinished game_finished = 12;
+        VotingCompleted voting_completed = 13;
     }
+}
+
+message VotingCompleted {
+    optional string killed_victim = 1;
 }
 
 message GameFinished {

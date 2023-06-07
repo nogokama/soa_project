@@ -1,0 +1,31 @@
+version: "3"
+
+services:
+  mafia_server:
+    build:
+      context: .
+      dockerfile: server/docker/Dockerfile
+    command: --port 10000
+    restart: always
+    networks:
+      - mynetwork
+    ports:
+      - "10000:10000"
+  client:
+    build:
+      context: .
+      dockerfile: client/docker/Dockerfile
+    environment:
+      - SERVER_ADDR=mafia_server:10000
+    networks:
+      - mynetwork
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - 5672:5672 # AMQP
+      - 15672:15672 # UI
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
