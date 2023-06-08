@@ -289,8 +289,15 @@ func (s *server) actionPrepare(req *mafia.GameRequest) (*gameSession, *mafia.Gam
 }
 
 func (s *server) mayBeNextNight(session *gameSession) {
-	if len(session.expectFinishFrom.ToSlice()) > 0 {
-		return
+	for _, name := range session.expectFinishFrom.ToSlice() {
+		if session.expectVoteFrom.Contains(name) {
+			return
+		}
+	}
+	for _, name := range session.expectVoteFrom.ToSlice() {
+		if session.expectFinishFrom.Contains(name) {
+			return
+		}
 	}
 
 	session.dayCounter++
@@ -393,6 +400,7 @@ func (s *server) mayBeEndGame(session *gameSession) bool {
 		for name := range session.players {
 			s.streams[name] <- &mafia.Event{Data: &mafia.Event_GameFinished{GameFinished: &mafia.GameFinished{
 				WinRole: mafia.MafiaRole_CIVILIAN,
+				Roles:   session.players,
 			}}}
 		}
 
@@ -404,6 +412,7 @@ func (s *server) mayBeEndGame(session *gameSession) bool {
 		for name := range session.players {
 			s.streams[name] <- &mafia.Event{Data: &mafia.Event_GameFinished{GameFinished: &mafia.GameFinished{
 				WinRole: mafia.MafiaRole_MAFIA,
+				Roles:   session.players,
 			}}}
 		}
 
@@ -485,6 +494,7 @@ func (s *server) startNewGame(n []string) {
 		s.streams[name] <- &mafia.Event{Data: &mafia.Event_GameStarted{GameStarted: &mafia.GameStarted{
 			Players: names,
 			Role:    session.players[name],
+			RoomId:  int32(len(s.sessions)),
 		}}}
 		s.streams[name] <- &mafia.Event{Data: &mafia.Event_NightStarted{NightStarted: &mafia.NightStarted{
 			NightNum: int32(session.dayCounter),
@@ -503,14 +513,26 @@ func (s *server) startNewGame(n []string) {
 func (s *server) ProcessDisconnect(name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	delete(s.streams, name)
 
-	for _, ch := range s.streams {
-		ch <- &mafia.Event{
-			Data: &mafia.Event_Disconnect{Disconnect: &mafia.PersonEvent{
-				PersonName: name,
-			}},
+	if s.newGameBuffer.Contains(name) {
+		s.newGameBuffer.Remove(name)
+		for _, cName := range s.newGameBuffer.ToSlice() {
+			s.streams[cName] <- &mafia.Event{
+				Data: &mafia.Event_Disconnect{Disconnect: &mafia.PersonEvent{
+					PersonName: name,
+				}},
+			}
+		}
+	} else if sessionNum, ok := s.games[name]; ok {
+		for cName := range s.sessions[sessionNum].players {
+			if cName != name {
+				s.streams[cName] <- &mafia.Event{
+					Data: &mafia.Event_Disconnect{Disconnect: &mafia.PersonEvent{
+						PersonName: name,
+					}},
+				}
+			}
 		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/gdamore/tcell/encoding"
+	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
 )
 
@@ -40,6 +41,8 @@ func main() {
 
 	grpcClient := mafia.NewMafiaClient(conn)
 
+	chatConn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatalf("Failed to create screen: %v", err)
@@ -52,7 +55,7 @@ func main() {
 	screen.Clear()
 	screen.Show()
 
-	client := NewClient(screen, grpcClient)
+	client := NewClient(screen, grpcClient, chatConn)
 
 	client.Start()
 }
