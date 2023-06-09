@@ -28,6 +28,14 @@ func (q *AskQueue) Pop() *mafia.Ask {
 	return ans
 }
 
+func (q *AskQueue) Peek() *mafia.Ask {
+	if len(q.queue) == 0 {
+		return nil
+	}
+
+	return q.queue[0]
+}
+
 func (q *AskQueue) Reset() {
 	q.queue = []*mafia.Ask{}
 }

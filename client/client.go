@@ -496,7 +496,9 @@ func (c *Client) handleEnter() {
 	}
 
 	if !c.state.autoMode && c.state.availableCommands.Contains(game.AutoCommandDesc) && mayBeCommand != game.AutoCommand {
-		c.state.lastAsk.Pop()
+		if ask := c.state.lastAsk.Peek(); ask != nil && ask.GetDefault() == mayBeCommand {
+			c.state.lastAsk.Pop()
+		}
 	}
 
 	c.state.input = strings.TrimSpace(c.state.input)
