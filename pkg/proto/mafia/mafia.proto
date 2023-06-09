@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package reverse;
+package mafia;
 option go_package = "soa_project/pkg/proto/mafia";
 
 enum MafiaRole {
@@ -81,6 +81,7 @@ message VotingCompleted {
 
 message GameFinished {
     MafiaRole win_role = 1;
+    map<string, MafiaRole> roles = 2;
 }
 
 message DayStarted {
@@ -101,6 +102,7 @@ message PersonEvent {
 message GameStarted {
     repeated string players =1;
     MafiaRole role =2;
+    int32 room_id = 3;
 }
 
 message GameInterrupted {

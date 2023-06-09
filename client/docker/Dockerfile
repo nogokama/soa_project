@@ -1,5 +1,6 @@
 FROM golang:latest
 WORKDIR /go/src/app
+COPY go.mod /go/src/app
+RUN go mod download
 COPY . /go/src/app
-RUN ls
 RUN go build -o app ./client

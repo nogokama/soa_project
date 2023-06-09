@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,10 +13,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gdamore/tcell"
+	"github.com/streadway/amqp"
 
 	mapset "github.com/deckarep/golang-set/v2"
+)
+
+const (
+	exchangeName = "message_exchange"
 )
 
 const (
@@ -32,7 +39,10 @@ const (
 	shouldSearchPrefix = "CHOOSE PLAYER TO CHECK"
 	shouldVotePrefix   = "CHOOSE PLAYER TO VOTE"
 
-	successWaitPrefix = "[SUCCESS, WAIT OTHERS]"
+	successWaitPrefix      = "[SUCCESS, WAIT OTHERS]"
+	voteOrFinishChatPrefix = "[/vote or /finish. CHAT]"
+	finishChatPrefix       = "[/finish the day. CHAT]"
+	mafiaChatPrefix        = "[/kill required. MAFIA CHAT]"
 
 	deadChillingPrefix = "[YOU ARE DEAD, WAIT OR EXIT]"
 
@@ -52,6 +62,11 @@ type Client struct {
 	gameEventsChan   chan *mafia.Event
 	gameEventsStream mafia.Mafia_RegisterClient
 
+	chatConn        *amqp.Connection
+	chatChan        chan game.Message
+	chatPublishChan *amqp.Channel
+	dropChatChan    chan bool
+
 	screen           tcell.Screen
 	screenEventsChan chan tcell.Event
 
@@ -59,6 +74,8 @@ type Client struct {
 }
 
 type clientState struct {
+	roomId int
+
 	myName string
 
 	input       string
@@ -67,24 +84,20 @@ type clientState struct {
 
 	gameState     game.GameState
 	updatesBuffer *CircularBuffer
+	waitingRoom   []string
+	players       map[string]mafia.MafiaRole
+	states        map[string]mafia.MafiaState
+	gameTime      game.TimeType
+	dayNum        int
 
-	commandsBuffer *CircularBuffer
-
-	waitingRoom []string
-
-	players map[string]mafia.MafiaRole
-	states  map[string]mafia.MafiaState
-
-	gameTime game.TimeType
-	dayNum   int
-
+	commandsBuffer    *CircularBuffer
 	availableCommands mapset.Set[string]
 
 	autoMode bool
-	lastAsk  *mafia.Ask
+	lastAsk  game.AskQueue
 }
 
-func NewClient(screen tcell.Screen, cli mafia.MafiaClient) *Client {
+func NewClient(screen tcell.Screen, cli mafia.MafiaClient, chatConn *amqp.Connection) *Client {
 	return &Client{
 		state: clientState{
 			input:             "",
@@ -96,12 +109,16 @@ func NewClient(screen tcell.Screen, cli mafia.MafiaClient) *Client {
 			states:            make(map[string]mafia.MafiaState),
 			availableCommands: mapset.NewSet(game.ExitCommandDesc),
 			dayNum:            1,
+			lastAsk:           game.NewAskQueue(),
 		},
 		screen:               screen,
 		connectionFailedChan: make(chan int),
 		grpcClient:           cli,
 		gameEventsChan:       make(chan *mafia.Event),
 		screenEventsChan:     make(chan tcell.Event),
+		chatConn:             chatConn,
+		chatChan:             make(chan game.Message),
+		dropChatChan:         make(chan bool),
 	}
 }
 
@@ -137,9 +154,13 @@ func (c *Client) handleInput() {
 			c.handleGameEvent(ev)
 		case ev := <-c.screenEventsChan:
 			c.handleScreenEvent(ev)
+		case msg := <-c.chatChan:
+			c.handleChatMessage(msg)
 		case <-c.connectionFailedChan:
 			c.handleConnectionFailed()
 		}
+
+		c.reRenderScreen()
 	}
 }
 
@@ -186,6 +207,18 @@ func (c *Client) handleGameEvent(ev *mafia.Event) {
 	c.reRenderScreen()
 }
 
+func (c *Client) handleChatMessage(msg game.Message) {
+	if c.state.gameTime == game.TimeNight {
+		// at night only mafias can chat
+		if c.state.players[c.state.myName] != mafia.MafiaRole_MAFIA {
+			return
+		}
+		c.state.updatesBuffer.Add(fmt.Sprintf("[MAFIA CHAT, %s]: %s", msg.From, msg.Data))
+	} else {
+		c.state.updatesBuffer.Add(fmt.Sprintf("[CHAT, %s]: %s", msg.From, msg.Data))
+	}
+}
+
 func (c *Client) onVotingCompleted(vc *mafia.VotingCompleted) {
 	if vc.KilledVictim == nil {
 		c.state.updatesBuffer.Add("[SYSTEM]: NOBODY KILLED ON VOTING")
@@ -210,6 +243,10 @@ func (c *Client) onGameFinished(g *mafia.GameFinished) {
 		c.state.updatesBuffer.Add("[SYSTEM]: MAFIA WON!")
 	}
 
+	for name, role := range g.GetRoles() {
+		c.state.players[name] = role
+	}
+
 	c.state.gameState = game.StateChilling
 	c.state.inputPrefix = gameFinishedPrefix
 
@@ -217,7 +254,9 @@ func (c *Client) onGameFinished(g *mafia.GameFinished) {
 	c.state.availableCommands.Add(game.ReplayCommandDesc)
 
 	c.state.autoMode = false
-	c.state.lastAsk = nil
+	c.state.lastAsk.Reset()
+
+	c.dropChatChan <- true
 }
 
 func (c *Client) onDayStarted(day *mafia.DayStarted) {
@@ -238,18 +277,59 @@ func (c *Client) onDayStarted(day *mafia.DayStarted) {
 }
 
 func (c *Client) onAskKill(ask *mafia.Ask) {
-	c.state.lastAsk = ask
-	c.state.gameState = game.StateKilling
-	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldKillPrefix, 1, len(c.state.players))
+	c.state.lastAsk.Set(&mafia.Ask{Default: game.KillCommand})
+	c.state.lastAsk.Push(ask)
+	c.state.gameState = game.StatePlaying
+	c.state.inputPrefix = mafiaChatPrefix
+
+	c.state.availableCommands.Add(game.KillCommandDesc)
 
 	if c.state.autoMode {
-		c.state.input = ask.GetDefault()
+		c.state.input = c.state.lastAsk.Pop().GetDefault()
+		c.handleEnter()
+	}
+}
+
+func (c *Client) onKillCommand() {
+	c.state.gameState = game.StateKilling
+	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldKillPrefix, 1, len(c.state.players))
+	c.state.availableCommands.Remove(game.KillCommandDesc)
+
+	if c.state.autoMode {
+		c.state.input = c.state.lastAsk.Pop().GetDefault()
+		c.handleEnter()
+	}
+}
+
+func (c *Client) onAskVote(ask *mafia.Ask) {
+	c.state.lastAsk.Set(&mafia.Ask{Default: game.VoteCommand})
+	c.state.lastAsk.Push(ask)
+	c.state.gameState = game.StatePlaying
+	c.state.inputPrefix = voteOrFinishChatPrefix
+
+	c.state.availableCommands.Add(game.VoteCommandDesc)
+	c.state.availableCommands.Add(game.FinishCommandDesc)
+
+	if c.state.autoMode {
+		c.state.input = c.state.lastAsk.Pop().GetDefault()
+		c.handleEnter()
+	}
+}
+
+func (c *Client) onVoteCommand() {
+	c.state.gameState = game.StateVoting
+	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldVotePrefix, 1, len(c.state.players))
+	c.state.availableCommands.Remove(game.VoteCommandDesc)
+	c.state.availableCommands.Remove(game.FinishCommandDesc)
+
+	if c.state.autoMode {
+		c.state.input = c.state.lastAsk.Pop().GetDefault()
 		c.handleEnter()
 	}
 }
 
 func (c *Client) onAskSearch(ask *mafia.Ask) {
-	c.state.lastAsk = ask
+	c.state.lastAsk.Set(ask)
 	c.state.gameState = game.StateSearching
 	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldSearchPrefix, 1, len(c.state.players))
 
@@ -259,18 +339,8 @@ func (c *Client) onAskSearch(ask *mafia.Ask) {
 	}
 }
 
-func (c *Client) onAskVote(ask *mafia.Ask) {
-	c.state.lastAsk = ask
-	c.state.gameState = game.StateVoting
-	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldVotePrefix, 1, len(c.state.players))
-
-	if c.state.autoMode {
-		c.state.input = ask.GetDefault()
-		c.handleEnter()
-	}
-}
-
 func (c *Client) onGameStarted(gs *mafia.GameStarted) {
+	c.state.roomId = int(gs.GetRoomId())
 	c.state.updatesBuffer.Clear()
 	c.state.updatesBuffer.Add("[SYSTEM]: GAME STARTED")
 	c.state.commandsBuffer.Clear()
@@ -285,6 +355,97 @@ func (c *Client) onGameStarted(gs *mafia.GameStarted) {
 	c.state.gameState = game.StatePlaying
 	c.state.gameTime = game.TimeNight
 	c.state.dayNum = 1
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go c.joinChatRoom(wg)
+
+	wg.Wait()
+}
+
+func (c *Client) joinChatRoom(wg *sync.WaitGroup) {
+	ch, err := c.chatConn.Channel()
+	defer ch.Close()
+	c.chatPublishChan = ch
+	defer func() { c.chatPublishChan = nil }()
+
+	err = ch.ExchangeDeclare(
+		exchangeName, // exchange name
+		"direct",     // exchange type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // no-wait
+		nil,          // arguments
+	)
+	if err != nil {
+		c.state.inputError = fmt.Errorf("exchange: %w", err).Error()
+		c.reRenderScreen()
+		return
+	}
+
+	q, err := ch.QueueDeclare(
+		c.getChatQueueName(c.state.myName), // queue name
+		false,                              // durable
+		false,                              // delete when unused
+		false,                              // exclusive
+		false,                              // no-wait
+		nil,                                // arguments
+	)
+	if err != nil {
+		c.state.inputError = fmt.Errorf("queuedeclare: %w", err).Error()
+		c.reRenderScreen()
+		return
+	}
+
+	err = ch.QueueBind(
+		q.Name,                // queue name
+		c.getChatRoutingKey(), // routing key
+		exchangeName,          // exchange name
+		false,                 // no-wait
+		nil,                   // arguments
+	)
+	if err != nil {
+		c.state.inputError = fmt.Errorf("bind: %w", err).Error()
+		c.reRenderScreen()
+		return
+	}
+
+	msgs, err := ch.Consume(
+		c.getChatQueueName(c.state.myName), // queue
+		"",                                 // consumer
+		true,                               // auto-ack
+		false,                              // exclusive
+		false,                              // no-local
+		false,                              // no-wait
+		nil,                                // args
+	)
+	if err != nil {
+		c.state.inputError = fmt.Errorf("consume: %w", err).Error()
+		c.reRenderScreen()
+		return
+	}
+
+	wg.Done()
+
+	for {
+		select {
+		case d := <-msgs:
+			m := game.Message{}
+			err = json.Unmarshal(d.Body, &m)
+			if err != nil {
+				c.state.inputError = fmt.Errorf("unmarshall: %w", err).Error()
+				c.reRenderScreen()
+				return
+			}
+
+			c.chatChan <- m
+
+		case <-c.dropChatChan:
+			return
+		}
+	}
 }
 
 func (c *Client) removeFromWaitingRoom(name string) {
@@ -318,7 +479,8 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		if len(c.state.input) > 0 {
-			c.state.input = c.state.input[:len(c.state.input)-1]
+			runes := []rune(c.state.input)
+			c.state.input = string(runes[:len(runes)-1])
 		}
 	default:
 		c.state.input += string(ev.Rune())
@@ -329,6 +491,16 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 
 func (c *Client) handleEnter() {
 	mayBeCommand := strings.TrimSpace(strings.ToLower(c.state.input))
+	if mayBeCommand != "" {
+		c.state.inputError = ""
+	}
+
+	if !c.state.autoMode && c.state.availableCommands.Contains(game.AutoCommandDesc) && mayBeCommand != game.AutoCommand {
+		c.state.lastAsk.Pop()
+	}
+
+	c.state.input = strings.TrimSpace(c.state.input)
+	c.state.commandsBuffer.Add(c.getFullInput())
 
 	found := false
 	for cmd := range c.state.availableCommands.Iter() {
@@ -346,33 +518,63 @@ func (c *Client) handleEnter() {
 			c.onReplayCommand()
 		case game.FinishCommand:
 			c.onFinishCommand()
+		case game.KillCommand:
+			c.onKillCommand()
+		case game.VoteCommand:
+			c.onVoteCommand()
 		}
-	}
-
-	if mayBeCommand != "" {
-		c.state.inputError = ""
-	}
-
-	c.state.input = strings.TrimSpace(c.state.input)
-	c.state.commandsBuffer.Add(c.getFullInput())
-
-	switch c.state.gameState {
-	case game.StateRegister:
-		c.onNameEntered()
-	case game.StateKilling:
-		c.onKillEntered()
-	case game.StateSearching:
-		c.onSearchEntered()
-	case game.StateVoting:
-		c.onVoteEntered()
+	} else {
+		switch c.state.gameState {
+		case game.StateRegister:
+			c.onNameEntered()
+		case game.StateKilling:
+			c.onKillEntered()
+		case game.StateSearching:
+			c.onSearchEntered()
+		case game.StateVoting:
+			c.onVoteEntered()
+		case game.StatePlaying:
+			c.onChatMessageEntered()
+		}
 	}
 
 	c.state.input = ""
 }
 
+func (c *Client) onChatMessageEntered() {
+	// only mafia can chat at night
+	if c.state.gameTime == game.TimeNight && c.state.players[c.state.myName] != mafia.MafiaRole_MAFIA {
+		return
+	}
+
+	msg := c.state.input
+
+	res, err := json.Marshal(game.Message{From: c.state.myName, Data: msg})
+	if err != nil {
+		c.state.inputError = err.Error()
+		return
+	}
+
+	err = c.chatPublishChan.Publish(
+		exchangeName,          // exchange
+		c.getChatRoutingKey(), // routing key
+		false,                 // mandatory
+		false,                 // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        res,
+		},
+	)
+
+	if err != nil {
+		c.state.inputError = err.Error()
+		return
+	}
+}
+
 func (c *Client) onAutoCommand() {
 	c.state.autoMode = true
-	c.state.input = c.state.lastAsk.GetDefault()
+	c.state.input = c.state.lastAsk.Pop().GetDefault()
 
 	c.state.availableCommands.Remove(game.AutoCommandDesc)
 	c.handleEnter()
@@ -388,6 +590,7 @@ func (c *Client) onReplayCommand() {
 	}
 
 	c.state.gameState = game.StateWaiting
+	c.state.updatesBuffer.Clear()
 	c.state.waitingRoom = resp.GetPlayers()
 
 	c.state.availableCommands.Remove(game.ReplayCommandDesc)
@@ -401,6 +604,7 @@ func (c *Client) onFinishCommand() {
 	}
 
 	c.state.availableCommands.Remove(game.FinishCommandDesc)
+	c.state.availableCommands.Remove(game.VoteCommandDesc)
 	c.state.inputPrefix = successWaitPrefix
 }
 
@@ -454,17 +658,6 @@ func (c *Client) onVoteEntered() {
 
 	if err = c.validateActionResp(resp, err); err != nil {
 		return
-	}
-
-	c.state.availableCommands.Add(game.FinishCommandDesc)
-	c.state.inputPrefix = finishRequiredPrefix
-	c.state.gameState = game.StatePlaying
-
-	c.state.lastAsk = &mafia.Ask{Default: game.FinishCommand}
-
-	if c.state.autoMode {
-		c.state.input = game.FinishCommand
-		c.handleEnter()
 	}
 }
 
@@ -539,6 +732,14 @@ func (c *Client) onNameEntered() {
 func (c *Client) leaveGame() {
 	c.screen.Fini()
 	os.Exit(0)
+}
+
+func (c *Client) getChatQueueName(username string) string {
+	return fmt.Sprintf("chat_%d_%s", c.state.roomId, username)
+}
+
+func (c *Client) getChatRoutingKey() string {
+	return fmt.Sprintf("chat_%d", c.state.roomId)
 }
 
 func (c *Client) reRenderScreen() {
@@ -622,9 +823,7 @@ func (c *Client) reRenderLeftScreen(x, y, width, height int) {
 }
 
 func (c *Client) renderRows(x, y, width, height int, rows []string) {
-	bottomLimit := y + height
-
-	limit := algo.Min(len(rows), bottomLimit-y-1)
+	limit := algo.Min(len(rows), height)
 
 	for i := 0; i < limit; i++ {
 		c.emitStr(x, y+limit-i-1, width, rows[i])
@@ -719,7 +918,7 @@ func (c *Client) emitInTheMiddle(x, y, width int, str string) {
 }
 
 func (c *Client) emitStr(x, y, width int, str string) {
-	for i, char := range str {
+	for i, char := range []rune(str) {
 		if i >= width {
 			break
 		}
