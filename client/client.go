@@ -301,6 +301,33 @@ func (c *Client) onKillCommand() {
 	}
 }
 
+func (c *Client) onAskVote(ask *mafia.Ask) {
+	c.state.lastAsk.Set(&mafia.Ask{Default: game.VoteCommand})
+	c.state.lastAsk.Push(ask)
+	c.state.gameState = game.StatePlaying
+	c.state.inputPrefix = voteOrFinishChatPrefix
+
+	c.state.availableCommands.Add(game.VoteCommandDesc)
+	c.state.availableCommands.Add(game.FinishCommandDesc)
+
+	if c.state.autoMode {
+		c.state.input = c.state.lastAsk.Pop().GetDefault()
+		c.handleEnter()
+	}
+}
+
+func (c *Client) onVoteCommand() {
+	c.state.gameState = game.StateVoting
+	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldVotePrefix, 1, len(c.state.players))
+	c.state.availableCommands.Remove(game.VoteCommandDesc)
+	c.state.availableCommands.Remove(game.FinishCommandDesc)
+
+	if c.state.autoMode {
+		c.state.input = c.state.lastAsk.Pop().GetDefault()
+		c.handleEnter()
+	}
+}
+
 func (c *Client) onAskSearch(ask *mafia.Ask) {
 	c.state.lastAsk.Set(ask)
 	c.state.gameState = game.StateSearching
@@ -310,22 +337,6 @@ func (c *Client) onAskSearch(ask *mafia.Ask) {
 		c.state.input = ask.GetDefault()
 		c.handleEnter()
 	}
-}
-
-func (c *Client) onAskVote(ask *mafia.Ask) {
-	c.state.lastAsk.Set(&mafia.Ask{Default: game.VoteCommand})
-	c.state.lastAsk.Push(ask)
-	c.state.gameState = game.StateVoting
-	c.state.inputPrefix = fmt.Sprintf("[%s %d-%d]", shouldVotePrefix, 1, len(c.state.players))
-
-	if c.state.autoMode {
-		c.state.input = ask.GetDefault()
-		c.handleEnter()
-	}
-}
-
-func (c *Client) onVoteCommand() {
-	// TODO add split
 }
 
 func (c *Client) onGameStarted(gs *mafia.GameStarted) {
@@ -374,33 +385,31 @@ func (c *Client) joinChatRoom(wg *sync.WaitGroup) {
 		return
 	}
 
-	for name := range c.state.players {
-		q, err := ch.QueueDeclare(
-			c.getChatQueueName(name), // queue name
-			false,                    // durable
-			false,                    // delete when unused
-			false,                    // exclusive
-			false,                    // no-wait
-			nil,                      // arguments
-		)
-		if err != nil {
-			c.state.inputError = fmt.Errorf("queuedeclare: %w", err).Error()
-			c.reRenderScreen()
-			return
-		}
+	q, err := ch.QueueDeclare(
+		c.getChatQueueName(c.state.myName), // queue name
+		false,                              // durable
+		false,                              // delete when unused
+		false,                              // exclusive
+		false,                              // no-wait
+		nil,                                // arguments
+	)
+	if err != nil {
+		c.state.inputError = fmt.Errorf("queuedeclare: %w", err).Error()
+		c.reRenderScreen()
+		return
+	}
 
-		err = ch.QueueBind(
-			q.Name,                // queue name
-			c.getChatRoutingKey(), // routing key
-			exchangeName,          // exchange name
-			false,                 // no-wait
-			nil,                   // arguments
-		)
-		if err != nil {
-			c.state.inputError = fmt.Errorf("bind: %w", err).Error()
-			c.reRenderScreen()
-			return
-		}
+	err = ch.QueueBind(
+		q.Name,                // queue name
+		c.getChatRoutingKey(), // routing key
+		exchangeName,          // exchange name
+		false,                 // no-wait
+		nil,                   // arguments
+	)
+	if err != nil {
+		c.state.inputError = fmt.Errorf("bind: %w", err).Error()
+		c.reRenderScreen()
+		return
 	}
 
 	msgs, err := ch.Consume(
@@ -482,6 +491,12 @@ func (c *Client) handleEventKey(ev *tcell.EventKey) {
 
 func (c *Client) handleEnter() {
 	mayBeCommand := strings.TrimSpace(strings.ToLower(c.state.input))
+	if mayBeCommand != "" {
+		c.state.inputError = ""
+	}
+
+	c.state.input = strings.TrimSpace(c.state.input)
+	c.state.commandsBuffer.Add(c.getFullInput())
 
 	found := false
 	for cmd := range c.state.availableCommands.Iter() {
@@ -499,33 +514,35 @@ func (c *Client) handleEnter() {
 			c.onReplayCommand()
 		case game.FinishCommand:
 			c.onFinishCommand()
+		case game.KillCommand:
+			c.onKillCommand()
+		case game.VoteCommand:
+			c.onVoteCommand()
 		}
-	}
-
-	if mayBeCommand != "" {
-		c.state.inputError = ""
-	}
-
-	c.state.input = strings.TrimSpace(c.state.input)
-	c.state.commandsBuffer.Add(c.getFullInput())
-
-	switch c.state.gameState {
-	case game.StateRegister:
-		c.onNameEntered()
-	case game.StateKilling:
-		c.onKillEntered()
-	case game.StateSearching:
-		c.onSearchEntered()
-	case game.StateVoting:
-		c.onVoteEntered()
-	case game.StatePlaying:
-		c.onChatMessageEntered()
+	} else {
+		switch c.state.gameState {
+		case game.StateRegister:
+			c.onNameEntered()
+		case game.StateKilling:
+			c.onKillEntered()
+		case game.StateSearching:
+			c.onSearchEntered()
+		case game.StateVoting:
+			c.onVoteEntered()
+		case game.StatePlaying:
+			c.onChatMessageEntered()
+		}
 	}
 
 	c.state.input = ""
 }
 
 func (c *Client) onChatMessageEntered() {
+	// only mafia can chat at night
+	if c.state.gameTime == game.TimeNight && c.state.players[c.state.myName] != mafia.MafiaRole_MAFIA {
+		return
+	}
+
 	msg := c.state.input
 
 	res, err := json.Marshal(game.Message{From: c.state.myName, Data: msg})
@@ -534,7 +551,6 @@ func (c *Client) onChatMessageEntered() {
 		return
 	}
 
-	// for name := range c.state.players {
 	err = c.chatPublishChan.Publish(
 		exchangeName,          // exchange
 		c.getChatRoutingKey(), // routing key
@@ -543,13 +559,13 @@ func (c *Client) onChatMessageEntered() {
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        res,
-		})
+		},
+	)
 
 	if err != nil {
 		c.state.inputError = err.Error()
 		return
 	}
-	// }
 }
 
 func (c *Client) onAutoCommand() {
@@ -570,6 +586,7 @@ func (c *Client) onReplayCommand() {
 	}
 
 	c.state.gameState = game.StateWaiting
+	c.state.updatesBuffer.Clear()
 	c.state.waitingRoom = resp.GetPlayers()
 
 	c.state.availableCommands.Remove(game.ReplayCommandDesc)
@@ -583,6 +600,7 @@ func (c *Client) onFinishCommand() {
 	}
 
 	c.state.availableCommands.Remove(game.FinishCommandDesc)
+	c.state.availableCommands.Remove(game.VoteCommandDesc)
 	c.state.inputPrefix = successWaitPrefix
 }
 
@@ -637,17 +655,6 @@ func (c *Client) onVoteEntered() {
 	if err = c.validateActionResp(resp, err); err != nil {
 		return
 	}
-
-	c.state.availableCommands.Add(game.FinishCommandDesc)
-	c.state.inputPrefix = finishRequiredPrefix
-	c.state.gameState = game.StatePlaying
-
-	c.state.lastAsk.Set(&mafia.Ask{Default: game.FinishCommand})
-
-	if c.state.autoMode {
-		c.state.input = game.FinishCommand
-		c.handleEnter()
-	}
 }
 
 func (c *Client) validateActionResp(resp *mafia.GameResponse, err error) error {
@@ -661,7 +668,7 @@ func (c *Client) validateActionResp(resp *mafia.GameResponse, err error) error {
 		return validateError
 	}
 
-	c.state.inputPrefix = voteOrFinishChatPrefix
+	c.state.inputPrefix = successWaitPrefix
 	c.state.gameState = game.StatePlaying
 
 	return nil

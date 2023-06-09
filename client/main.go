@@ -17,8 +17,6 @@ func main() {
 	server := flag.String("server", "mafia_server:10000", "Server address")
 	flag.Parse()
 
-	encoding.Register()
-
 	logFile, err := os.Create("debug.log")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create log file: %v\n", err)
@@ -26,12 +24,8 @@ func main() {
 	}
 	defer logFile.Close()
 
-	log.SetOutput(logFile)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetPrefix("[DEBUG] ")
-
-	log.Println("printing")
-	log.Println(os.Getenv("SERVER_ADDR"))
 
 	conn, err := grpc.Dial(*server, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -42,6 +36,12 @@ func main() {
 	grpcClient := mafia.NewMafiaClient(conn)
 
 	chatConn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+	if err != nil {
+		log.Fatalf("Failed to create rabbitmq connectoin: %v. Wait for rabbit-mq to launch or restart the container", err)
+	}
+
+	log.SetOutput(logFile)
+	encoding.Register()
 
 	screen, err := tcell.NewScreen()
 	if err != nil {

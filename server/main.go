@@ -178,6 +178,8 @@ func (s *server) Vote(ctx context.Context, req *mafia.GameRequest) (*mafia.GameR
 	session.expectVoteFrom.Remove(req.GetName())
 	session.voting[req.GetVictim()]++
 
+	s.mayBeNextNight(session)
+
 	return &mafia.GameResponse{Success: true}, nil
 }
 
@@ -223,11 +225,6 @@ func (s *server) FinishDay(ctx context.Context, req *mafia.FinishDayRequest) (*m
 	session, err := s.getSessionByPlayer(req.GetName())
 	if err != nil {
 		reason := err.Error()
-		return &mafia.GameResponse{Success: false, Reason: &reason}, nil
-	}
-
-	if session.expectVoteFrom.Contains(req.GetName()) {
-		reason := "You are expected to /vote before finish day"
 		return &mafia.GameResponse{Success: false, Reason: &reason}, nil
 	}
 
